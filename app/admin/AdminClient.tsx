@@ -58,6 +58,9 @@ export default function AdminClient() {
         <div className="text-center py-20 text-gray-400">
           <p className="text-4xl mb-3">✅</p>
           <p className="text-sm">Žádná nahlášení.</p>
+          <p className="text-xs mt-3 text-gray-300 max-w-xs mx-auto">
+            Reporty jsou uloženy v prohlížeči. Admin musí být ve stejném prohlížeči, kde bylo nahlášení provedeno.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">

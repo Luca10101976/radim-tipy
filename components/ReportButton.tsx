@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTips } from "@/lib/store";
 
 interface Props {
@@ -10,10 +10,16 @@ interface Props {
 export default function ReportButton({ tipId }: Props) {
   const { reportTip, reports } = useTips();
   const alreadyReported = reports.some((r) => r.tipId === tipId);
-  const [done, setDone] = useState(alreadyReported);
+  const [done, setDone] = useState(false);
   const [open, setOpen] = useState(false);
 
+  // Sync with context after localStorage hydration
+  useEffect(() => {
+    if (alreadyReported) setDone(true);
+  }, [alreadyReported]);
+
   function submit(reason: string) {
+    if (alreadyReported) { setDone(true); return; } // guard against stale state
     reportTip(tipId, reason);
     setDone(true);
     setOpen(false);

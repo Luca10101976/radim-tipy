@@ -8,8 +8,8 @@ import AdminBadge from "@/components/AdminBadge";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Radim.pro – domácí tipy, které fungují",
-  description: "Zkušenosti z domácnosti. Zjisti, co ostatním fungovalo – a co ne.",
+  title: "Radim.pro – tebe, když nevíš",
+  description: "Radim.pro – tebe, když nevíš. Domácí tipy ověřené ostatními. Zjisti, co fungovalo – a co ne.",
 };
 
 export default function RootLayout({

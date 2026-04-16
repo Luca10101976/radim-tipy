@@ -83,6 +83,9 @@ export default function TipListClient() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
           <RadimAvatar size={96} className="flex-shrink-0 drop-shadow-md" />
           <div>
+            <p className="text-xs font-semibold tracking-widest text-teal-500 uppercase mb-1">
+              tebe, když nevíš
+            </p>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug mb-2">
               Někdo to zkusil před tebou.{" "}
               <span className="text-teal-600">Tady zjistíš, co fungovalo – a co ne.</span>
