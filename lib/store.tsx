@@ -19,7 +19,8 @@ export interface Report {
 }
 
 const MAX_TIPS_PER_USER = 5;
-const ADMIN_KEY = "radim-admin-2024";
+// SHA-256 of the admin passphrase — plaintext never stored in bundle
+const ADMIN_KEY_HASH = "986a11a5199c373b8c65225513b7bd49d25cb971129f711e35347741262bc90e";
 
 /**
  * localStorage keys
@@ -94,7 +95,7 @@ interface TipsContextValue {
   reportTip: (tipId: string, reason: string) => void;
   deleteTip: (tipId: string) => void;
   dismissReport: (tipId: string) => void;
-  unlockAdmin: (key: string) => boolean;
+  unlockAdmin: (key: string) => Promise<boolean>;
 }
 
 const TipsContext = createContext<TipsContextValue | null>(null);
@@ -298,8 +299,14 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     [reports]
   );
 
-  const unlockAdmin = useCallback((key: string): boolean => {
-    if (key === ADMIN_KEY) {
+  const unlockAdmin = useCallback(async (key: string): Promise<boolean> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(key);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashHex = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    if (hashHex === ADMIN_KEY_HASH) {
       localStorage.setItem(LS.isAdmin, "true");
       setIsAdmin(true);
       return true;

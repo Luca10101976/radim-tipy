@@ -38,8 +38,8 @@ export default function AdminClient() {
     reload();
   }, []);
 
-  function handleUnlock() {
-    const ok = unlockAdmin(keyInput);
+  async function handleUnlock() {
+    const ok = await unlockAdmin(keyInput);
     if (ok) { reload(); } else { setError(true); }
   }
 
