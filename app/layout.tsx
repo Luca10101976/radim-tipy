@@ -7,8 +7,8 @@ import { TipsProvider } from "@/lib/store";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Radim – domácí tipy, které fungují",
-  description: "Sdílej a ověřuj praktické tipy z domácnosti.",
+  title: "Radim.pro – domácí tipy, které fungují",
+  description: "Zkušenosti z domácnosti. Zjisti, co ostatním fungovalo – a co ne.",
 };
 
 export default function RootLayout({
@@ -22,13 +22,13 @@ export default function RootLayout({
         <TipsProvider>
           <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
             <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2">
-                <span className="text-xl font-bold text-indigo-700">Radim</span>
-                <span className="text-xs text-gray-400 hidden sm:block">domácí tipy, které fungují</span>
+              <Link href="/" className="flex items-center gap-1.5">
+                <span className="text-lg font-bold text-teal-700">Radim</span>
+                <span className="text-lg font-bold text-gray-300">.pro</span>
               </Link>
               <Link
                 href="/pridat"
-                className="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
+                className="text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
               >
                 + Přidat tip
               </Link>

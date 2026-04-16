@@ -1,11 +1,27 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useTips } from "@/lib/store";
-import { computeStats, CATEGORIES, CATEGORY_TAGS, getTagsForCategory, getAllUniqueTags, Category } from "@/lib/types";
+import {
+  computeStats,
+  CATEGORIES,
+  getTagsForCategory,
+  getAllUniqueTags,
+  Category,
+} from "@/lib/types";
 import TipCard from "./TipCard";
+import RadimAvatar from "./RadimAvatar";
 
-type SortKey = "success_rate" | "votes";
+type SortKey = "success_rate" | "votes" | "newest";
+
+const RADIM_HINTS = [
+  "Zkus to napsat jednoduše. Třeba \u201epračka\u201c.",
+  "Tohle už tu někdo řešil.",
+  "Zkus to najít, možná už to tu je.",
+];
+
+const RADIM_EMPTY = "Tohle by se hodilo vědět.";
 
 export default function TipListClient() {
   const { tips } = useTips();
@@ -13,10 +29,10 @@ export default function TipListClient() {
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("success_rate");
+  const [hintIndex] = useState(() => Math.floor(Math.random() * RADIM_HINTS.length));
 
   function selectCategory(cat: Category | null) {
     setActiveCategory(cat);
-    // Reset tagy, které do nové kategorie nepatří
     if (cat !== null) {
       const allowed = new Set(getTagsForCategory(cat));
       setActiveTags((prev) => prev.filter((t) => allowed.has(t)));
@@ -31,7 +47,6 @@ export default function TipListClient() {
     );
   }
 
-  // Tagy viditelné v aktuálním kontextu
   const visibleTags = activeCategory
     ? getTagsForCategory(activeCategory)
     : getAllUniqueTags();
@@ -54,31 +69,56 @@ export default function TipListClient() {
       })
       .sort((a, b) => {
         if (sort === "success_rate") return b.success_rate - a.success_rate;
-        return b.votes_up + b.votes_down - (a.votes_up + a.votes_down);
+        if (sort === "votes") return (b.votes_up + b.votes_down) - (a.votes_up + a.votes_down);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   }, [tips, search, activeCategory, activeTags, sort]);
 
+  const isFiltering = search || activeCategory || activeTags.length > 0;
+
   return (
     <div>
-      {/* Search */}
-      <div className="relative mb-6">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🔍</span>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Co řešíš? Hledej tip…"
-          className="w-full pl-11 pr-4 py-3.5 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
-        />
-      </div>
+      {/* ── HERO ── */}
+      <section className="mb-10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
+          <RadimAvatar size={96} className="flex-shrink-0 drop-shadow-md" />
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug mb-2">
+              Někdo to zkusil před tebou.{" "}
+              <span className="text-teal-600">Tady zjistíš, co fungovalo – a co ne.</span>
+            </h1>
+            <p className="text-gray-400 text-sm">
+              Žádné reklamy. Jen zkušenosti lidí z domácnosti.
+            </p>
+          </div>
+        </div>
 
-      {/* Categories */}
-      <div className="flex flex-wrap gap-2 mb-4">
+        {/* Search */}
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 text-xl select-none">🔍</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder='Máš nějakou starost? (např. smrdí pračka, mastnota na digestoři)'
+            className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-teal-400 bg-white shadow-sm transition-colors placeholder:text-gray-300"
+          />
+        </div>
+
+        {/* Radim search hint */}
+        <div className="flex items-center gap-2 mt-2 ml-1">
+          <RadimAvatar size={22} className="flex-shrink-0 opacity-80" />
+          <p className="text-xs text-gray-400 italic">{RADIM_HINTS[hintIndex]}</p>
+        </div>
+      </section>
+
+      {/* ── CATEGORIES ── */}
+      <div className="flex flex-wrap gap-2 mb-3">
         <button
           onClick={() => selectCategory(null)}
-          className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+          className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
             !activeCategory
-              ? "bg-indigo-600 text-white border-indigo-600"
-              : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+              ? "bg-teal-600 text-white border-teal-600"
+              : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
           }`}
         >
           Vše
@@ -87,10 +127,10 @@ export default function TipListClient() {
           <button
             key={cat}
             onClick={() => selectCategory(activeCategory === cat ? null : cat)}
-            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
               activeCategory === cat
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+                ? "bg-teal-600 text-white border-teal-600"
+                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
             }`}
           >
             {cat}
@@ -98,17 +138,17 @@ export default function TipListClient() {
         ))}
       </div>
 
-      {/* Contextual tags */}
+      {/* ── TAGS ── */}
       {visibleTags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-1">
+        <div className="flex flex-wrap gap-1.5 mb-1">
           {visibleTags.map((tag) => (
             <button
               key={tag}
               onClick={() => toggleTag(tag)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+              className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
                 activeTags.includes(tag)
                   ? "bg-gray-800 text-white border-gray-800"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                  : "bg-white text-gray-400 border-gray-200 hover:border-gray-400 hover:text-gray-600"
               }`}
             >
               {tag}
@@ -117,35 +157,49 @@ export default function TipListClient() {
         </div>
       )}
       {activeCategory && (
-        <p className="text-xs text-gray-400 mb-4">
-          Tagy pro: <span className="font-medium text-gray-500">{activeCategory}</span>
+        <p className="text-xs text-gray-300 mb-4 ml-1">
+          tagy pro: <span className="text-gray-400">{activeCategory}</span>
         </p>
       )}
       {!activeCategory && <div className="mb-4" />}
 
-      {/* Sort + count */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">
-          {filtered.length} {filtered.length === 1 ? "tip" : "tipů"}
+      {/* ── SORT + COUNT ── */}
+      <div className="flex items-center justify-between mb-5">
+        <p className="text-sm text-gray-400">
+          {filtered.length}{" "}
+          {filtered.length === 1 ? "tip" : filtered.length < 5 ? "tipy" : "tipů"}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Řadit:</span>
+          <span className="text-xs text-gray-400">Seřadit:</span>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-teal-400"
           >
-            <option value="success_rate">Úspěšnost</option>
-            <option value="votes">Počet hlasů</option>
+            <option value="success_rate">Nejvíc funguje</option>
+            <option value="votes">Nejvíc hlasů</option>
+            <option value="newest">Nejnovější</option>
           </select>
         </div>
       </div>
 
-      {/* List */}
+      {/* ── LIST or EMPTY STATE ── */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <div className="text-4xl mb-3">🤷</div>
-          <p className="text-sm">Žádný tip neodpovídá filtru.</p>
+        <div className="text-center py-20">
+          <div className="flex justify-center mb-4">
+            <RadimAvatar size={72} className="opacity-70" />
+          </div>
+          <p className="text-xs text-gray-400 italic mb-3">„{RADIM_EMPTY}"</p>
+          <p className="text-lg font-semibold text-gray-700 mb-1">Tohle tu ještě není.</p>
+          <p className="text-sm text-gray-400 mb-6">
+            Přidej zkušenost a pomoz ostatním.
+          </p>
+          <Link
+            href={`/pridat${search ? `?problem=${encodeURIComponent(search)}` : ""}`}
+            className="inline-block bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm"
+          >
+            Přidat tip
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
