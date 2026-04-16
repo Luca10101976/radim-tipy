@@ -14,10 +14,24 @@ export type VoteType = "up" | "down";
 
 const MAX_TIPS_PER_USER = 5;
 
-// localStorage keys (per spec)
+/**
+ * localStorage keys
+ *
+ * "userTips"    – tips added by this device (array of Tip)
+ *                 never overwritten by vote operations
+ * "voteDeltas"  – cumulative vote changes on this device
+ *                 { tipId: { up: number, down: number } }
+ * "votes"       – which tip this user personally voted on
+ *                 { tipId: "up"|"down" }
+ * "createdTips" – IDs of tips added from this device
+ * "userId"      – stable random ID for this device
+ *
+ * Separation ensures that voting can NEVER accidentally erase user-added tips.
+ */
 const LS = {
+  userTips:    "userTips",
+  voteDeltas:  "voteDeltas",
   votes:       "votes",
-  tips:        "radim_tips",
   createdTips: "createdTips",
   userId:      "userId",
 } as const;
@@ -29,7 +43,7 @@ function generateUserId(): string {
 function safeGet<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    return raw !== null ? (JSON.parse(raw) as T) : fallback;
   } catch {
     return fallback;
   }
@@ -39,8 +53,24 @@ function safeSet(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // ignore (private mode / quota)
+    // ignore (private mode / storage quota)
   }
+}
+
+/** Apply stored voteDeltas onto a tips array to get persisted vote counts. */
+function applyDeltas(
+  tips: Tip[],
+  deltas: Record<string, { up: number; down: number }>
+): Tip[] {
+  return tips.map((t) => {
+    const d = deltas[t.id];
+    if (!d) return t;
+    return {
+      ...t,
+      votes_up:   Math.max(0, t.votes_up   + d.up),
+      votes_down: Math.max(0, t.votes_down + d.down),
+    };
+  });
 }
 
 interface TipsContextValue {
@@ -57,12 +87,12 @@ interface TipsContextValue {
 const TipsContext = createContext<TipsContextValue | null>(null);
 
 export function TipsProvider({ children }: { children: React.ReactNode }) {
-  const [tips, setTips]             = useState<Tip[]>(MOCK_TIPS);
-  const [votedTips, setVotedTips]   = useState<Record<string, VoteType>>({});
+  const [tips, setTips]               = useState<Tip[]>(MOCK_TIPS);
+  const [votedTips, setVotedTips]     = useState<Record<string, VoteType>>({});
+  const [voteDeltas, setVoteDeltas]   = useState<Record<string, { up: number; down: number }>>({});
   const [createdTips, setCreatedTips] = useState<string[]>([]);
-  const [userId, setUserId]         = useState<string>("");
+  const [userId, setUserId]           = useState<string>("");
 
-  // Hydrate from localStorage on first render
   useEffect(() => {
     // userId – create once, keep forever
     let uid = localStorage.getItem(LS.userId) ?? "";
@@ -72,12 +102,31 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     }
     setUserId(uid);
 
-    // tips (user may have added some)
-    const storedTips = safeGet<Tip[]>(LS.tips, []);
-    if (storedTips.length) setTips(storedTips);
+    // user-added tips (separate from mock data, never overwritten by votes)
+    let storedUserTips = safeGet<Tip[]>(LS.userTips, []);
 
-    // votes  { tipId: "up"|"down" }
-    // migrate from old key "radim_votes" if new key is empty
+    // Migrate from old "radim_tips" key: extract any non-mock tips that were
+    // stored there by the previous version of the store.
+    if (storedUserTips.length === 0) {
+      const mockIds = new Set(MOCK_TIPS.map((t) => t.id));
+      const legacyAll = safeGet<Tip[]>("radim_tips", []);
+      const legacyUser = legacyAll.filter((t) => !mockIds.has(t.id));
+      if (legacyUser.length > 0) {
+        storedUserTips = legacyUser;
+        safeSet(LS.userTips, legacyUser);
+        // also restore createdTips IDs if missing
+        const existingCreated = safeGet<string[]>(LS.createdTips, []);
+        if (existingCreated.length === 0) {
+          const migratedIds = legacyUser.map((t) => t.id);
+          safeSet(LS.createdTips, migratedIds);
+        }
+      }
+    }
+
+    // vote deltas – cumulative changes stored per tipId
+    const storedDeltas = safeGet<Record<string, { up: number; down: number }>>(LS.voteDeltas, {});
+
+    // personal votes (with legacy migration from old "radim_votes" key)
     let storedVotes = safeGet<Record<string, VoteType>>(LS.votes, {});
     if (!Object.keys(storedVotes).length) {
       const legacy = safeGet<Record<string, VoteType>>("radim_votes", {});
@@ -86,15 +135,22 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         safeSet(LS.votes, legacy);
       }
     }
-    if (Object.keys(storedVotes).length) setVotedTips(storedVotes);
 
-    // IDs of tips this user created
+    // IDs of tips created on this device
     const storedCreated = safeGet<string[]>(LS.createdTips, []);
+
+    // Rebuild tip list: user-added first, then MOCK_TIPS, then apply vote deltas
+    const base = [...storedUserTips, ...MOCK_TIPS];
+    const merged = applyDeltas(base, storedDeltas);
+
+    setTips(merged);
+    setVoteDeltas(storedDeltas);
+    setVotedTips(storedVotes);
     setCreatedTips(storedCreated);
   }, []);
 
   // ── handleVote ────────────────────────────────────────────────────────────
-  // toggle / change / remove vote; persists to localStorage key "votes"
+  // Updates vote state + deltas only. Never touches userTips.
   const handleVote = useCallback(
     (tipId: string, type: VoteType) => {
       const current = votedTips[tipId] ?? null;
@@ -104,19 +160,31 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       let newVote: VoteType | null = null;
 
       if (type === "up") {
-        if (current === null)       { upDelta = 1;                    newVote = "up";   }
-        else if (current === "down"){ downDelta = -1; upDelta = 1;    newVote = "up";   }
-        else                        { upDelta = -1;                   newVote = null;   } // toggle off
+        if (current === null)        { upDelta = 1;                 newVote = "up";   }
+        else if (current === "down") { downDelta = -1; upDelta = 1; newVote = "up";   }
+        else                         { upDelta = -1;                newVote = null;   }
       } else {
-        if (current === null)       { downDelta = 1;                  newVote = "down"; }
-        else if (current === "up")  { upDelta = -1; downDelta = 1;    newVote = "down"; }
-        else                        { downDelta = -1;                 newVote = null;   } // toggle off
+        if (current === null)        { downDelta = 1;                newVote = "down"; }
+        else if (current === "up")   { upDelta = -1; downDelta = 1;  newVote = "down"; }
+        else                         { downDelta = -1;               newVote = null;   }
       }
 
+      // Update personal vote record
       const nextVotes = { ...votedTips };
       if (newVote === null) delete nextVotes[tipId];
       else nextVotes[tipId] = newVote;
 
+      // Update cumulative deltas (additive, so they compose correctly)
+      const prev = voteDeltas[tipId] ?? { up: 0, down: 0 };
+      const nextDeltas = {
+        ...voteDeltas,
+        [tipId]: {
+          up:   prev.up   + upDelta,
+          down: prev.down + downDelta,
+        },
+      };
+
+      // Update in-memory tip list
       const nextTips = tips.map((t) =>
         t.id !== tipId ? t : {
           ...t,
@@ -126,15 +194,17 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       );
 
       setVotedTips(nextVotes);
+      setVoteDeltas(nextDeltas);
       setTips(nextTips);
+
+      // Persist only vote-related keys — never touches userTips
       safeSet(LS.votes, nextVotes);
-      safeSet(LS.tips, nextTips);
+      safeSet(LS.voteDeltas, nextDeltas);
     },
-    [tips, votedTips]
+    [tips, votedTips, voteDeltas]
   );
 
   // ── addTip ────────────────────────────────────────────────────────────────
-  // returns "limit" if user already hit MAX_TIPS_PER_USER, else "ok"
   const addTip = useCallback(
     (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">): "ok" | "limit" => {
       if (createdTips.length >= MAX_TIPS_PER_USER) return "limit";
@@ -142,18 +212,21 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       const newTip: Tip = {
         ...tip,
         id: Date.now().toString(),
-        votes_up:   tip.authorResult === "fungovalo"    ? 1 : 0,
-        votes_down: tip.authorResult === "nefungovalo"  ? 1 : 0,
+        votes_up:   tip.authorResult === "fungovalo"   ? 1 : 0,
+        votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
         createdAt:  new Date().toISOString().split("T")[0],
       };
 
       const nextTips    = [newTip, ...tips];
       const nextCreated = [...createdTips, newTip.id];
 
+      // Store user-added tip separately so votes can never overwrite it
+      const prevUserTips = safeGet<Tip[]>(LS.userTips, []);
+      safeSet(LS.userTips, [newTip, ...prevUserTips]);
+      safeSet(LS.createdTips, nextCreated);
+
       setTips(nextTips);
       setCreatedTips(nextCreated);
-      safeSet(LS.tips, nextTips);
-      safeSet(LS.createdTips, nextCreated);
 
       return "ok";
     },
