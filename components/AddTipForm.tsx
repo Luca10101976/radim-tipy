@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTips } from "@/lib/store";
 import { Category, CATEGORIES, getTagsForCategory, Tip } from "@/lib/types";
 
 export default function AddTipForm() {
-  const { addTip } = useTips();
+  const { addTip, canAddTip, createdTips } = useTips();
   const router = useRouter();
 
   const [problem, setProblem] = useState("");
@@ -22,7 +23,6 @@ export default function AddTipForm() {
 
   function handleCategoryChange(newCat: Category) {
     setCategory(newCat);
-    // Zachovej jen tagy, které platí i v nové kategorii
     const allowed = new Set(getTagsForCategory(newCat));
     setSelectedTags((prev) => prev.filter((t) => allowed.has(t)));
   }
@@ -59,7 +59,7 @@ export default function AddTipForm() {
       setErrors(errs);
       return;
     }
-    addTip({
+    const result = addTip({
       title: title.trim(),
       category,
       problem: problem.trim(),
@@ -68,10 +68,37 @@ export default function AddTipForm() {
       warning: warning.trim() || undefined,
       tags: selectedTags,
     } as Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">);
-    setSubmitted(true);
-    setTimeout(() => router.push("/"), 1500);
+
+    if (result === "ok") {
+      setSubmitted(true);
+      setTimeout(() => router.push("/"), 1500);
+    }
+    // "limit" is handled by the guard above (canAddTip), shouldn't reach here
   }
 
+  // ── LIMIT STATE ──────────────────────────────────────────────────────────
+  if (!canAddTip) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-16 px-4">
+        <div className="text-5xl mb-4">🙏</div>
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">Díky za tvoje tipy!</h2>
+        <p className="text-gray-500 text-sm leading-relaxed mb-6">
+          Už jsi přidal/a několik tipů. Díky! Další budeš moct přidat později.
+        </p>
+        <p className="text-xs text-gray-400 mb-6">
+          Přidáno: {createdTips.length} z 5 tipů z tohoto zařízení.
+        </p>
+        <Link
+          href="/"
+          className="inline-block bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors"
+        >
+          Zpět na tipy
+        </Link>
+      </div>
+    );
+  }
+
+  // ── SUCCESS STATE ─────────────────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="text-center py-20">
@@ -82,10 +109,18 @@ export default function AddTipForm() {
     );
   }
 
+  const remaining = 5 - createdTips.length;
   const categoryTags = getTagsForCategory(category);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-xl mx-auto">
+      {/* Remaining tips counter */}
+      {remaining <= 3 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
+          Ještě můžeš přidat {remaining} {remaining === 1 ? "tip" : remaining < 5 ? "tipy" : "tipů"} z tohoto zařízení.
+        </div>
+      )}
+
       {/* Title */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -96,7 +131,7 @@ export default function AddTipForm() {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Krátký, výstižný název"
           maxLength={80}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
         />
         {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
         <p className="text-xs text-gray-400 mt-1">{title.length}/80</p>
@@ -108,12 +143,10 @@ export default function AddTipForm() {
         <select
           value={category}
           onChange={(e) => handleCategoryChange(e.target.value as Category)}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
         >
           {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
       </div>
@@ -129,7 +162,7 @@ export default function AddTipForm() {
           placeholder="Co ti dělalo problém?"
           rows={3}
           maxLength={300}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
         />
         {errors.problem && <p className="text-red-500 text-xs mt-1">{errors.problem}</p>}
         <p className="text-xs text-gray-400 mt-1">{problem.length}/300</p>
@@ -146,7 +179,7 @@ export default function AddTipForm() {
           placeholder="Jak přesně jsi to udělal/a? Stručně a konkrétně."
           rows={4}
           maxLength={500}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
         />
         {errors.solution && <p className="text-red-500 text-xs mt-1">{errors.solution}</p>}
         <p className="text-xs text-gray-400 mt-1">{solution.length}/500</p>
@@ -185,7 +218,7 @@ export default function AddTipForm() {
           onChange={(e) => setWarning(e.target.value)}
           placeholder="Na co si dát pozor?"
           maxLength={200}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
         />
       </div>
 
@@ -203,7 +236,7 @@ export default function AddTipForm() {
               onClick={() => toggleTag(tag)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                 selectedTags.includes(tag)
-                  ? "bg-indigo-600 text-white border-indigo-600"
+                  ? "bg-teal-600 text-white border-teal-600"
                   : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
               }`}
             >
@@ -215,14 +248,9 @@ export default function AddTipForm() {
           <input
             value={customTag}
             onChange={(e) => setCustomTag(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addCustomTag();
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomTag(); } }}
             placeholder="Vlastní tag…"
-            className="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
           />
           <button
             type="button"
@@ -235,18 +263,9 @@ export default function AddTipForm() {
         {selectedTags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {selectedTags.map((tag) => (
-              <span
-                key={tag}
-                className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full flex items-center gap-1"
-              >
+              <span key={tag} className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded-full flex items-center gap-1">
                 {tag}
-                <button
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className="text-indigo-400 hover:text-indigo-700"
-                >
-                  ×
-                </button>
+                <button type="button" onClick={() => toggleTag(tag)} className="text-teal-400 hover:text-teal-700">×</button>
               </span>
             ))}
           </div>
@@ -255,7 +274,7 @@ export default function AddTipForm() {
 
       <button
         type="submit"
-        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
+        className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
       >
         Přidat tip
       </button>

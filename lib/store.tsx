@@ -12,50 +12,81 @@ import { MOCK_TIPS } from "./mockData";
 
 export type VoteType = "up" | "down";
 
+const MAX_TIPS_PER_USER = 5;
+
+// localStorage keys (per spec)
+const LS = {
+  votes:       "votes",
+  tips:        "radim_tips",
+  createdTips: "createdTips",
+  userId:      "userId",
+} as const;
+
+function generateUserId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+}
+
+function safeGet<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeSet(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore (private mode / quota)
+  }
+}
+
 interface TipsContextValue {
   tips: Tip[];
   votedTips: Record<string, VoteType>;
+  createdTips: string[];
+  canAddTip: boolean;
+  userId: string;
   handleVote: (tipId: string, type: VoteType) => void;
-  addTip: (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">) => void;
+  addTip: (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">) => "ok" | "limit";
   getTip: (id: string) => Tip | undefined;
 }
 
 const TipsContext = createContext<TipsContextValue | null>(null);
 
 export function TipsProvider({ children }: { children: React.ReactNode }) {
-  const [tips, setTips] = useState<Tip[]>(MOCK_TIPS);
-  const [votedTips, setVotedTips] = useState<Record<string, VoteType>>({});
+  const [tips, setTips]             = useState<Tip[]>(MOCK_TIPS);
+  const [votedTips, setVotedTips]   = useState<Record<string, VoteType>>({});
+  const [createdTips, setCreatedTips] = useState<string[]>([]);
+  const [userId, setUserId]         = useState<string>("");
 
+  // Hydrate from localStorage on first render
   useEffect(() => {
-    try {
-      const storedTips = localStorage.getItem("radim_tips");
-      const storedVotes = localStorage.getItem("radim_votes");
-      if (storedTips) setTips(JSON.parse(storedTips));
-      if (storedVotes) setVotedTips(JSON.parse(storedVotes));
-    } catch {
-      // ignore
+    // userId – create once, keep forever
+    let uid = localStorage.getItem(LS.userId) ?? "";
+    if (!uid) {
+      uid = generateUserId();
+      safeSet(LS.userId, uid);
     }
+    setUserId(uid);
+
+    // tips (user may have added some)
+    const storedTips = safeGet<Tip[]>(LS.tips, []);
+    if (storedTips.length) setTips(storedTips);
+
+    // votes  { tipId: "up"|"down" }
+    const storedVotes = safeGet<Record<string, VoteType>>(LS.votes, {});
+    if (Object.keys(storedVotes).length) setVotedTips(storedVotes);
+
+    // IDs of tips this user created
+    const storedCreated = safeGet<string[]>(LS.createdTips, []);
+    setCreatedTips(storedCreated);
   }, []);
 
-  const persist = useCallback(
-    (nextTips: Tip[], nextVotes: Record<string, VoteType>) => {
-      try {
-        localStorage.setItem("radim_tips", JSON.stringify(nextTips));
-        localStorage.setItem("radim_votes", JSON.stringify(nextVotes));
-      } catch {
-        // ignore
-      }
-    },
-    []
-  );
-
-  /**
-   * handleVote – full toggle/change logic:
-   *
-   * same type as current → toggle off (null)
-   * different type       → switch vote
-   * no vote              → add vote
-   */
+  // ── handleVote ────────────────────────────────────────────────────────────
+  // toggle / change / remove vote; persists to localStorage key "votes"
   const handleVote = useCallback(
     (tipId: string, type: VoteType) => {
       const current = votedTips[tipId] ?? null;
@@ -65,70 +96,60 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       let newVote: VoteType | null = null;
 
       if (type === "up") {
-        if (current === null) {
-          upDelta = 1;
-          newVote = "up";
-        } else if (current === "down") {
-          downDelta = -1;
-          upDelta = 1;
-          newVote = "up";
-        } else {
-          // current === "up" → toggle off
-          upDelta = -1;
-          newVote = null;
-        }
+        if (current === null)       { upDelta = 1;                    newVote = "up";   }
+        else if (current === "down"){ downDelta = -1; upDelta = 1;    newVote = "up";   }
+        else                        { upDelta = -1;                   newVote = null;   } // toggle off
       } else {
-        if (current === null) {
-          downDelta = 1;
-          newVote = "down";
-        } else if (current === "up") {
-          upDelta = -1;
-          downDelta = 1;
-          newVote = "down";
-        } else {
-          // current === "down" → toggle off
-          downDelta = -1;
-          newVote = null;
-        }
+        if (current === null)       { downDelta = 1;                  newVote = "down"; }
+        else if (current === "up")  { upDelta = -1; downDelta = 1;    newVote = "down"; }
+        else                        { downDelta = -1;                 newVote = null;   } // toggle off
       }
 
       const nextVotes = { ...votedTips };
-      if (newVote === null) {
-        delete nextVotes[tipId];
-      } else {
-        nextVotes[tipId] = newVote;
-      }
+      if (newVote === null) delete nextVotes[tipId];
+      else nextVotes[tipId] = newVote;
 
-      const nextTips = tips.map((t) => {
-        if (t.id !== tipId) return t;
-        return {
+      const nextTips = tips.map((t) =>
+        t.id !== tipId ? t : {
           ...t,
-          votes_up: Math.max(0, t.votes_up + upDelta),
+          votes_up:   Math.max(0, t.votes_up   + upDelta),
           votes_down: Math.max(0, t.votes_down + downDelta),
-        };
-      });
+        }
+      );
 
       setVotedTips(nextVotes);
       setTips(nextTips);
-      persist(nextTips, nextVotes);
+      safeSet(LS.votes, nextVotes);
+      safeSet(LS.tips, nextTips);
     },
-    [tips, votedTips, persist]
+    [tips, votedTips]
   );
 
+  // ── addTip ────────────────────────────────────────────────────────────────
+  // returns "limit" if user already hit MAX_TIPS_PER_USER, else "ok"
   const addTip = useCallback(
-    (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">) => {
+    (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">): "ok" | "limit" => {
+      if (createdTips.length >= MAX_TIPS_PER_USER) return "limit";
+
       const newTip: Tip = {
         ...tip,
         id: Date.now().toString(),
-        votes_up: tip.authorResult === "fungovalo" ? 1 : 0,
-        votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
-        createdAt: new Date().toISOString().split("T")[0],
+        votes_up:   tip.authorResult === "fungovalo"    ? 1 : 0,
+        votes_down: tip.authorResult === "nefungovalo"  ? 1 : 0,
+        createdAt:  new Date().toISOString().split("T")[0],
       };
-      const nextTips = [newTip, ...tips];
+
+      const nextTips    = [newTip, ...tips];
+      const nextCreated = [...createdTips, newTip.id];
+
       setTips(nextTips);
-      persist(nextTips, votedTips);
+      setCreatedTips(nextCreated);
+      safeSet(LS.tips, nextTips);
+      safeSet(LS.createdTips, nextCreated);
+
+      return "ok";
     },
-    [tips, votedTips, persist]
+    [tips, createdTips]
   );
 
   const getTip = useCallback(
@@ -138,7 +159,16 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TipsContext.Provider
-      value={{ tips, votedTips, handleVote, addTip, getTip }}
+      value={{
+        tips,
+        votedTips,
+        createdTips,
+        canAddTip: createdTips.length < MAX_TIPS_PER_USER,
+        userId,
+        handleVote,
+        addTip,
+        getTip,
+      }}
     >
       {children}
     </TipsContext.Provider>
