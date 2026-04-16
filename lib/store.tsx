@@ -307,6 +307,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
               : undefined,
         },
       });
+      if (error) console.error("[signIn error]", error.message, error.status);
       return error ? "error" : "ok";
     },
     []
