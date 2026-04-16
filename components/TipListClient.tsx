@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useTips } from "@/lib/store";
 import {
@@ -29,7 +29,10 @@ export default function TipListClient() {
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("success_rate");
-  const [hintIndex] = useState(() => Math.floor(Math.random() * RADIM_HINTS.length));
+  const [hintIndex, setHintIndex] = useState(0);
+  useEffect(() => {
+    setHintIndex(Math.floor(Math.random() * RADIM_HINTS.length));
+  }, []);
 
   function selectCategory(cat: Category | null) {
     setActiveCategory(cat);
