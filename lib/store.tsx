@@ -302,7 +302,9 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         email,
         options: {
           emailRedirectTo:
-            typeof window !== "undefined" ? window.location.origin : undefined,
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback`
+              : undefined,
         },
       });
       return error ? "error" : "ok";
