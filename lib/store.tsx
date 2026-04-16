@@ -77,7 +77,15 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     if (storedTips.length) setTips(storedTips);
 
     // votes  { tipId: "up"|"down" }
-    const storedVotes = safeGet<Record<string, VoteType>>(LS.votes, {});
+    // migrate from old key "radim_votes" if new key is empty
+    let storedVotes = safeGet<Record<string, VoteType>>(LS.votes, {});
+    if (!Object.keys(storedVotes).length) {
+      const legacy = safeGet<Record<string, VoteType>>("radim_votes", {});
+      if (Object.keys(legacy).length) {
+        storedVotes = legacy;
+        safeSet(LS.votes, legacy);
+      }
+    }
     if (Object.keys(storedVotes).length) setVotedTips(storedVotes);
 
     // IDs of tips this user created
