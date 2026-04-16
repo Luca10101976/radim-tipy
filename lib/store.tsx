@@ -7,311 +7,314 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { Tip } from "./types";
-import { MOCK_TIPS } from "./mockData";
+import { User } from "@supabase/supabase-js";
+import { supabase } from "./supabaseClient";
+import { Tip, Category } from "./types";
 
 export type VoteType = "up" | "down";
 
 export interface Report {
+  id: string;
   tipId: string;
   reason: string;
   createdAt: string;
 }
 
-const MAX_TIPS_PER_USER = 5;
-// SHA-256 of the admin passphrase — plaintext never stored in bundle
-const ADMIN_KEY_HASH = "986a11a5199c373b8c65225513b7bd49d25cb971129f711e35347741262bc90e";
-
-/**
- * localStorage keys
- *
- * "userTips"    – tips added by this device (array of Tip)
- * "voteDeltas"  – cumulative vote changes { tipId: { up, down } }
- * "votes"       – personal votes { tipId: "up"|"down" }
- * "createdTips" – IDs of tips added from this device
- * "userId"      – stable random ID for this device
- * "reports"     – nahlášení { tipId, reason, createdAt }[]
- * "isAdmin"     – "true" if admin unlocked
- */
-const LS = {
-  userTips:    "userTips",
-  voteDeltas:  "voteDeltas",
-  votes:       "votes",
-  createdTips: "createdTips",
-  userId:      "userId",
-  reports:     "reports",
-  isAdmin:     "isAdmin",
-} as const;
-
-function generateUserId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
-}
-
-function safeGet<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw !== null ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function safeSet(key: string, value: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore (private mode / storage quota)
-  }
-}
-
-/** Apply stored voteDeltas onto a tips array to get persisted vote counts. */
-function applyDeltas(
-  tips: Tip[],
-  deltas: Record<string, { up: number; down: number }>
-): Tip[] {
-  return tips.map((t) => {
-    const d = deltas[t.id];
-    if (!d) return t;
-    return {
-      ...t,
-      votes_up:   Math.max(0, t.votes_up   + d.up),
-      votes_down: Math.max(0, t.votes_down + d.down),
-    };
-  });
+function mapTip(row: Record<string, unknown>): Tip {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    category: row.category as Category,
+    problem: row.problem as string,
+    solution: row.solution as string,
+    authorResult: row.author_result as "fungovalo" | "nefungovalo",
+    warning: (row.warning as string) ?? undefined,
+    tags: (row.tags as string[]) ?? [],
+    votes_up: (row.votes_up as number) ?? 0,
+    votes_down: (row.votes_down as number) ?? 0,
+    createdAt: (row.created_at as string)?.split("T")[0] ?? "",
+  };
 }
 
 interface TipsContextValue {
   tips: Tip[];
   votedTips: Record<string, VoteType>;
-  createdTips: string[];
-  canAddTip: boolean;
-  userId: string;
+  user: User | null;
   isAdmin: boolean;
+  isLoading: boolean;
   reports: Report[];
   reportedTipIds: Set<string>;
-  handleVote: (tipId: string, type: VoteType) => void;
-  addTip: (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">) => "ok" | "limit";
+  handleVote: (tipId: string, type: VoteType) => Promise<void>;
+  addTip: (
+    tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">
+  ) => Promise<"ok" | "auth_required">;
   getTip: (id: string) => Tip | undefined;
-  reportTip: (tipId: string, reason: string) => void;
-  deleteTip: (tipId: string) => void;
-  dismissReport: (tipId: string) => void;
-  unlockAdmin: (key: string) => Promise<boolean>;
+  reportTip: (tipId: string, reason: string) => Promise<void>;
+  deleteTip: (tipId: string) => Promise<void>;
+  dismissReport: (tipId: string) => Promise<void>;
+  signIn: (email: string) => Promise<"ok" | "error">;
+  signOut: () => Promise<void>;
 }
 
 const TipsContext = createContext<TipsContextValue | null>(null);
 
 export function TipsProvider({ children }: { children: React.ReactNode }) {
-  const [tips, setTips]               = useState<Tip[]>(MOCK_TIPS);
-  const [votedTips, setVotedTips]     = useState<Record<string, VoteType>>({});
-  const [voteDeltas, setVoteDeltas]   = useState<Record<string, { up: number; down: number }>>({});
-  const [createdTips, setCreatedTips] = useState<string[]>([]);
-  const [userId, setUserId]           = useState<string>("");
-  const [reports, setReports]         = useState<Report[]>([]);
-  const [isAdmin, setIsAdmin]         = useState<boolean>(false);
+  const [tips, setTips] = useState<Tip[]>([]);
+  const [votedTips, setVotedTips] = useState<Record<string, VoteType>>({});
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [reports, setReports] = useState<Report[]>([]);
 
-  useEffect(() => {
-    // userId – create once, keep forever
-    let uid = localStorage.getItem(LS.userId) ?? "";
-    if (!uid) {
-      uid = generateUserId();
-      safeSet(LS.userId, uid);
-    }
-    setUserId(uid);
+  const isAdmin =
+    !!user &&
+    user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
-    // user-added tips (separate from mock data, never overwritten by votes)
-    let storedUserTips = safeGet<Tip[]>(LS.userTips, []);
-
-    // Migrate from old "radim_tips" key: extract any non-mock tips that were
-    // stored there by the previous version of the store.
-    if (storedUserTips.length === 0) {
-      const mockIds = new Set(MOCK_TIPS.map((t) => t.id));
-      const legacyAll = safeGet<Tip[]>("radim_tips", []);
-      const legacyUser = legacyAll.filter((t) => !mockIds.has(t.id));
-      if (legacyUser.length > 0) {
-        storedUserTips = legacyUser;
-        safeSet(LS.userTips, legacyUser);
-        // also restore createdTips IDs if missing
-        const existingCreated = safeGet<string[]>(LS.createdTips, []);
-        if (existingCreated.length === 0) {
-          const migratedIds = legacyUser.map((t) => t.id);
-          safeSet(LS.createdTips, migratedIds);
-        }
-      }
-    }
-
-    // vote deltas – cumulative changes stored per tipId
-    const storedDeltas = safeGet<Record<string, { up: number; down: number }>>(LS.voteDeltas, {});
-
-    // personal votes (with legacy migration from old "radim_votes" key)
-    let storedVotes = safeGet<Record<string, VoteType>>(LS.votes, {});
-    if (!Object.keys(storedVotes).length) {
-      const legacy = safeGet<Record<string, VoteType>>("radim_votes", {});
-      if (Object.keys(legacy).length) {
-        storedVotes = legacy;
-        safeSet(LS.votes, legacy);
-      }
-    }
-
-    // IDs of tips created on this device
-    const storedCreated = safeGet<string[]>(LS.createdTips, []);
-
-    // reports + admin
-    const storedReports = safeGet<Report[]>(LS.reports, []);
-    const storedAdmin = localStorage.getItem(LS.isAdmin) === "true";
-    setReports(storedReports);
-    setIsAdmin(storedAdmin);
-
-    // Rebuild tip list: user-added first, then MOCK_TIPS, then apply vote deltas
-    const base = [...storedUserTips, ...MOCK_TIPS];
-    const merged = applyDeltas(base, storedDeltas);
-
-    setTips(merged);
-    setVoteDeltas(storedDeltas);
-    setVotedTips(storedVotes);
-    setCreatedTips(storedCreated);
+  // ── load tips ────────────────────────────────────────────────────────────
+  const loadTips = useCallback(async () => {
+    const { data } = await supabase
+      .from("tips")
+      .select("*")
+      .eq("hidden", false)
+      .order("created_at", { ascending: false });
+    if (data) setTips(data.map((r) => mapTip(r as Record<string, unknown>)));
   }, []);
 
+  // ── load votes for user ──────────────────────────────────────────────────
+  const loadVotes = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("votes")
+      .select("tip_id, vote_type")
+      .eq("user_id", userId);
+    if (data) {
+      const map: Record<string, VoteType> = {};
+      for (const row of data) {
+        map[row.tip_id as string] = row.vote_type as VoteType;
+      }
+      setVotedTips(map);
+    }
+  }, []);
+
+  // ── load reports (admin only) ────────────────────────────────────────────
+  const loadReports = useCallback(async () => {
+    const { data } = await supabase
+      .from("reports")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (data) {
+      setReports(
+        data.map((r) => ({
+          id: r.id as string,
+          tipId: r.tip_id as string,
+          reason: r.reason as string,
+          createdAt: r.created_at as string,
+        }))
+      );
+    }
+  }, []);
+
+  // ── init: auth state listener ────────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+
+    async function init() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      if (mounted) setUser(currentUser);
+      await loadTips();
+      if (currentUser) {
+        await loadVotes(currentUser.id);
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+        if (currentUser.email === adminEmail) {
+          await loadReports();
+        }
+      }
+      if (mounted) setIsLoading(false);
+    }
+
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const newUser = session?.user ?? null;
+        if (mounted) setUser(newUser);
+        if (newUser) {
+          await loadVotes(newUser.id);
+          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+          if (newUser.email === adminEmail) {
+            await loadReports();
+          }
+        } else {
+          setVotedTips({});
+          setReports([]);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [loadTips, loadVotes, loadReports]);
+
   // ── handleVote ────────────────────────────────────────────────────────────
-  // Updates vote state + deltas only. Never touches userTips.
   const handleVote = useCallback(
-    (tipId: string, type: VoteType) => {
+    async (tipId: string, type: VoteType) => {
+      if (!user) return;
+
       const current = votedTips[tipId] ?? null;
+      const isToggleOff = current === type;
 
-      let upDelta = 0;
-      let downDelta = 0;
-      let newVote: VoteType | null = null;
+      if (isToggleOff) {
+        // delete vote
+        await supabase
+          .from("votes")
+          .delete()
+          .eq("tip_id", tipId)
+          .eq("user_id", user.id);
 
-      if (type === "up") {
-        if (current === null)        { upDelta = 1;                 newVote = "up";   }
-        else if (current === "down") { downDelta = -1; upDelta = 1; newVote = "up";   }
-        else                         { upDelta = -1;                newVote = null;   }
+        const nextVoted = { ...votedTips };
+        delete nextVoted[tipId];
+        setVotedTips(nextVoted);
       } else {
-        if (current === null)        { downDelta = 1;                newVote = "down"; }
-        else if (current === "up")   { upDelta = -1; downDelta = 1;  newVote = "down"; }
-        else                         { downDelta = -1;               newVote = null;   }
+        // upsert vote
+        await supabase.from("votes").upsert(
+          { tip_id: tipId, user_id: user.id, vote_type: type },
+          { onConflict: "tip_id,user_id" }
+        );
+
+        setVotedTips({ ...votedTips, [tipId]: type });
       }
 
-      // Update personal vote record
-      const nextVotes = { ...votedTips };
-      if (newVote === null) delete nextVotes[tipId];
-      else nextVotes[tipId] = newVote;
+      // Recalculate votes_up / votes_down for this tip from DB
+      const { data: votesData } = await supabase
+        .from("votes")
+        .select("vote_type")
+        .eq("tip_id", tipId);
 
-      // Update cumulative deltas (additive, so they compose correctly)
-      const prev = voteDeltas[tipId] ?? { up: 0, down: 0 };
-      const nextDeltas = {
-        ...voteDeltas,
-        [tipId]: {
-          up:   prev.up   + upDelta,
-          down: prev.down + downDelta,
-        },
-      };
+      if (votesData) {
+        const votes_up = votesData.filter((v) => v.vote_type === "up").length;
+        const votes_down = votesData.filter(
+          (v) => v.vote_type === "down"
+        ).length;
 
-      // Update in-memory tip list
-      const nextTips = tips.map((t) =>
-        t.id !== tipId ? t : {
-          ...t,
-          votes_up:   Math.max(0, t.votes_up   + upDelta),
-          votes_down: Math.max(0, t.votes_down + downDelta),
-        }
-      );
+        await supabase
+          .from("tips")
+          .update({ votes_up, votes_down })
+          .eq("id", tipId);
 
-      setVotedTips(nextVotes);
-      setVoteDeltas(nextDeltas);
-      setTips(nextTips);
-
-      // Persist only vote-related keys — never touches userTips
-      safeSet(LS.votes, nextVotes);
-      safeSet(LS.voteDeltas, nextDeltas);
+        setTips((prev) =>
+          prev.map((t) =>
+            t.id === tipId ? { ...t, votes_up, votes_down } : t
+          )
+        );
+      }
     },
-    [tips, votedTips, voteDeltas]
+    [user, votedTips]
   );
 
   // ── addTip ────────────────────────────────────────────────────────────────
   const addTip = useCallback(
-    (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">): "ok" | "limit" => {
-      if (createdTips.length >= MAX_TIPS_PER_USER) return "limit";
+    async (
+      tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">
+    ): Promise<"ok" | "auth_required"> => {
+      if (!user) return "auth_required";
 
-      const newTip: Tip = {
-        ...tip,
-        id: Date.now().toString(),
-        votes_up:   tip.authorResult === "fungovalo"   ? 1 : 0,
-        votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
-        createdAt:  new Date().toISOString().split("T")[0],
-      };
+      const { data, error } = await supabase
+        .from("tips")
+        .insert({
+          title: tip.title,
+          category: tip.category,
+          problem: tip.problem,
+          solution: tip.solution,
+          author_result: tip.authorResult,
+          warning: tip.warning ?? null,
+          tags: tip.tags,
+          votes_up: tip.authorResult === "fungovalo" ? 1 : 0,
+          votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
+          user_id: user.id,
+          hidden: false,
+        })
+        .select()
+        .single();
 
-      const nextTips    = [newTip, ...tips];
-      const nextCreated = [...createdTips, newTip.id];
+      if (error || !data) return "auth_required";
 
-      // Store user-added tip separately so votes can never overwrite it
-      const prevUserTips = safeGet<Tip[]>(LS.userTips, []);
-      safeSet(LS.userTips, [newTip, ...prevUserTips]);
-      safeSet(LS.createdTips, nextCreated);
-
-      setTips(nextTips);
-      setCreatedTips(nextCreated);
-
+      const newTip = mapTip(data as Record<string, unknown>);
+      setTips((prev) => [newTip, ...prev]);
       return "ok";
     },
-    [tips, createdTips]
+    [user]
   );
 
+  // ── getTip ────────────────────────────────────────────────────────────────
   const getTip = useCallback(
     (id: string) => tips.find((t) => t.id === id),
     [tips]
   );
 
+  // ── reportTip ─────────────────────────────────────────────────────────────
   const reportTip = useCallback(
-    (tipId: string, reason: string) => {
-      // one report per tip per device
-      if (reports.some((r) => r.tipId === tipId)) return;
-      const next: Report[] = [
-        ...reports,
-        { tipId, reason, createdAt: new Date().toISOString() },
-      ];
-      setReports(next);
-      safeSet(LS.reports, next);
+    async (tipId: string, reason: string) => {
+      if (!user) return;
+
+      await supabase.from("reports").upsert(
+        { tip_id: tipId, user_id: user.id, reason },
+        { onConflict: "tip_id,user_id" }
+      );
+
+      // hide the tip
+      await supabase.from("tips").update({ hidden: true }).eq("id", tipId);
+
+      // remove from local state
+      setTips((prev) => prev.filter((t) => t.id !== tipId));
     },
-    [reports]
+    [user]
   );
 
+  // ── deleteTip ─────────────────────────────────────────────────────────────
   const deleteTip = useCallback(
-    (tipId: string) => {
-      // remove from in-memory list
-      const nextTips = tips.filter((t) => t.id !== tipId);
-      setTips(nextTips);
-      // remove from userTips storage
-      const prevUserTips = safeGet<Tip[]>(LS.userTips, []);
-      safeSet(LS.userTips, prevUserTips.filter((t) => t.id !== tipId));
-      // remove associated report
-      const nextReports = reports.filter((r) => r.tipId !== tipId);
-      setReports(nextReports);
-      safeSet(LS.reports, nextReports);
+    async (tipId: string) => {
+      await supabase.from("tips").delete().eq("id", tipId);
+      setTips((prev) => prev.filter((t) => t.id !== tipId));
+      setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
-    [tips, reports]
+    []
   );
 
+  // ── dismissReport ─────────────────────────────────────────────────────────
   const dismissReport = useCallback(
-    (tipId: string) => {
-      const next = reports.filter((r) => r.tipId !== tipId);
-      setReports(next);
-      safeSet(LS.reports, next);
+    async (tipId: string) => {
+      // delete all reports for this tip
+      await supabase.from("reports").delete().eq("tip_id", tipId);
+      // unhide the tip
+      await supabase.from("tips").update({ hidden: false }).eq("id", tipId);
+      setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
-    [reports]
+    []
   );
 
-  const unlockAdmin = useCallback(async (key: string): Promise<boolean> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(key);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashHex = Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    if (hashHex === ADMIN_KEY_HASH) {
-      localStorage.setItem(LS.isAdmin, "true");
-      setIsAdmin(true);
-      return true;
-    }
-    return false;
+  // ── signIn ────────────────────────────────────────────────────────────────
+  const signIn = useCallback(
+    async (email: string): Promise<"ok" | "error"> => {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo:
+            typeof window !== "undefined" ? window.location.origin : undefined,
+        },
+      });
+      return error ? "error" : "ok";
+    },
+    []
+  );
+
+  // ── signOut ───────────────────────────────────────────────────────────────
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setVotedTips({});
+    setReports([]);
   }, []);
 
   return (
@@ -319,10 +322,9 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       value={{
         tips,
         votedTips,
-        createdTips,
-        canAddTip: createdTips.length < MAX_TIPS_PER_USER,
-        userId,
+        user,
         isAdmin,
+        isLoading,
         reports,
         reportedTipIds: new Set(reports.map((r) => r.tipId)),
         handleVote,
@@ -331,7 +333,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         reportTip,
         deleteTip,
         dismissReport,
-        unlockAdmin,
+        signIn,
+        signOut,
       }}
     >
       {children}
