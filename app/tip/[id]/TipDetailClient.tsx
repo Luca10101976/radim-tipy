@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function TipDetailClient({ id }: Props) {
-  const { getTip } = useTips();
+  const { getTip, reportedTipIds, isAdmin } = useTips();
   const raw = getTip(id);
 
   if (!raw) {
@@ -20,6 +20,20 @@ export default function TipDetailClient({ id }: Props) {
       <div className="text-center py-24">
         <p className="text-gray-500">Tip nenalezen.</p>
         <Link href="/" className="text-indigo-600 text-sm mt-2 inline-block hover:underline">
+          ← Zpět na hlavní stránku
+        </Link>
+      </div>
+    );
+  }
+
+  // Reported tip — hide from public
+  if (reportedTipIds.has(id) && !isAdmin) {
+    return (
+      <div className="text-center py-24">
+        <p className="text-4xl mb-4">🚫</p>
+        <p className="text-gray-700 font-medium mb-1">Tento tip byl nahlášen</p>
+        <p className="text-sm text-gray-400 mb-6">Čeká na posouzení správcem.</p>
+        <Link href="/" className="text-teal-600 text-sm hover:underline">
           ← Zpět na hlavní stránku
         </Link>
       </div>

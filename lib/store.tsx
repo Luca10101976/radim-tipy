@@ -87,6 +87,7 @@ interface TipsContextValue {
   userId: string;
   isAdmin: boolean;
   reports: Report[];
+  reportedTipIds: Set<string>;
   handleVote: (tipId: string, type: VoteType) => void;
   addTip: (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">) => "ok" | "limit";
   getTip: (id: string) => Tip | undefined;
@@ -316,6 +317,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         userId,
         isAdmin,
         reports,
+        reportedTipIds: new Set(reports.map((r) => r.tipId)),
         handleVote,
         addTip,
         getTip,

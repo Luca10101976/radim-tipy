@@ -24,7 +24,7 @@ const RADIM_HINTS = [
 const RADIM_EMPTY = "Tohle by se hodilo vědět.";
 
 export default function TipListClient() {
-  const { tips } = useTips();
+  const { tips, reportedTipIds, isAdmin } = useTips();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -59,6 +59,8 @@ export default function TipListClient() {
     return tips
       .map(computeStats)
       .filter((t) => {
+        // hide reported tips from public (admin sees everything)
+        if (!isAdmin && reportedTipIds.has(t.id)) return false;
         const matchSearch =
           !q ||
           t.title.toLowerCase().includes(q) ||
