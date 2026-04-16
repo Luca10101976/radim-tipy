@@ -26,7 +26,7 @@ export default function RootLayout({
               <Link href="/" className="flex items-center gap-2">
                 <span className="text-lg font-bold text-teal-700">Radim</span>
                 <span className="text-lg font-bold text-gray-300">.pro</span>
-                <span className="hidden sm:inline text-xs text-gray-400 font-normal pl-1 border-l border-gray-200 ml-0.5">
+                <span className="text-xs text-gray-400 font-normal pl-1 border-l border-gray-200 ml-0.5">
                   tebe, když nevíš
                 </span>
               </Link>
