@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTips } from "@/lib/store";
 import { Category, CATEGORIES, getTagsForCategory, Tip } from "@/lib/types";
+import { containsBlockedContent } from "@/lib/contentFilter";
 
 export default function AddTipForm() {
   const { addTip, canAddTip, createdTips } = useTips();
@@ -57,6 +58,11 @@ export default function AddTipForm() {
     const errs = validate();
     if (Object.keys(errs).length) {
       setErrors(errs);
+      return;
+    }
+    const combined = [title, problem, solution, warning].join(" ");
+    if (containsBlockedContent(combined)) {
+      setErrors({ _blocked: "Tohle sem nepatří. Zkus to napsat jako normální radu." });
       return;
     }
     const result = addTip({
@@ -271,6 +277,12 @@ export default function AddTipForm() {
           </div>
         )}
       </div>
+
+      {errors._blocked && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {errors._blocked}
+        </div>
+      )}
 
       <button
         type="submit"
