@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { TipsProvider } from "@/lib/store";
+import AdminBadge from "@/components/AdminBadge";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -26,12 +27,15 @@ export default function RootLayout({
                 <span className="text-lg font-bold text-teal-700">Radim</span>
                 <span className="text-lg font-bold text-gray-300">.pro</span>
               </Link>
-              <Link
-                href="/pridat"
-                className="text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
-              >
-                + Přidat tip
-              </Link>
+              <div className="flex items-center gap-3">
+                <AdminBadge />
+                <Link
+                  href="/pridat"
+                  className="text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
+                >
+                  + Přidat tip
+                </Link>
+              </div>
             </div>
           </header>
           <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>

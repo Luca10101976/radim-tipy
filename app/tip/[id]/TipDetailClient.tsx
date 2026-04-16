@@ -4,6 +4,7 @@ import { useTips } from "@/lib/store";
 import { computeStats } from "@/lib/types";
 import VoteButtons from "@/components/VoteButtons";
 import RadimSection from "@/components/RadimSection";
+import ReportButton from "@/components/ReportButton";
 import Link from "next/link";
 
 interface Props {
@@ -93,6 +94,9 @@ export default function TipDetailClient({ id }: Props) {
           </h2>
           <VoteButtons tip={tip} />
         </section>
+
+        {/* Report */}
+        <ReportButton tipId={tip.id} />
       </div>
     </div>
   );

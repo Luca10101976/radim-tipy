@@ -12,21 +12,25 @@ import { MOCK_TIPS } from "./mockData";
 
 export type VoteType = "up" | "down";
 
+export interface Report {
+  tipId: string;
+  reason: string;
+  createdAt: string;
+}
+
 const MAX_TIPS_PER_USER = 5;
+const ADMIN_KEY = "radim-admin-2024";
 
 /**
  * localStorage keys
  *
  * "userTips"    – tips added by this device (array of Tip)
- *                 never overwritten by vote operations
- * "voteDeltas"  – cumulative vote changes on this device
- *                 { tipId: { up: number, down: number } }
- * "votes"       – which tip this user personally voted on
- *                 { tipId: "up"|"down" }
+ * "voteDeltas"  – cumulative vote changes { tipId: { up, down } }
+ * "votes"       – personal votes { tipId: "up"|"down" }
  * "createdTips" – IDs of tips added from this device
  * "userId"      – stable random ID for this device
- *
- * Separation ensures that voting can NEVER accidentally erase user-added tips.
+ * "reports"     – nahlášení { tipId, reason, createdAt }[]
+ * "isAdmin"     – "true" if admin unlocked
  */
 const LS = {
   userTips:    "userTips",
@@ -34,6 +38,8 @@ const LS = {
   votes:       "votes",
   createdTips: "createdTips",
   userId:      "userId",
+  reports:     "reports",
+  isAdmin:     "isAdmin",
 } as const;
 
 function generateUserId(): string {
@@ -79,9 +85,15 @@ interface TipsContextValue {
   createdTips: string[];
   canAddTip: boolean;
   userId: string;
+  isAdmin: boolean;
+  reports: Report[];
   handleVote: (tipId: string, type: VoteType) => void;
   addTip: (tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">) => "ok" | "limit";
   getTip: (id: string) => Tip | undefined;
+  reportTip: (tipId: string, reason: string) => void;
+  deleteTip: (tipId: string) => void;
+  dismissReport: (tipId: string) => void;
+  unlockAdmin: (key: string) => boolean;
 }
 
 const TipsContext = createContext<TipsContextValue | null>(null);
@@ -92,6 +104,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const [voteDeltas, setVoteDeltas]   = useState<Record<string, { up: number; down: number }>>({});
   const [createdTips, setCreatedTips] = useState<string[]>([]);
   const [userId, setUserId]           = useState<string>("");
+  const [reports, setReports]         = useState<Report[]>([]);
+  const [isAdmin, setIsAdmin]         = useState<boolean>(false);
 
   useEffect(() => {
     // userId – create once, keep forever
@@ -138,6 +152,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
 
     // IDs of tips created on this device
     const storedCreated = safeGet<string[]>(LS.createdTips, []);
+
+    // reports + admin
+    const storedReports = safeGet<Report[]>(LS.reports, []);
+    const storedAdmin = localStorage.getItem(LS.isAdmin) === "true";
+    setReports(storedReports);
+    setIsAdmin(storedAdmin);
 
     // Rebuild tip list: user-added first, then MOCK_TIPS, then apply vote deltas
     const base = [...storedUserTips, ...MOCK_TIPS];
@@ -238,6 +258,54 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     [tips]
   );
 
+  const reportTip = useCallback(
+    (tipId: string, reason: string) => {
+      // one report per tip per device
+      if (reports.some((r) => r.tipId === tipId)) return;
+      const next: Report[] = [
+        ...reports,
+        { tipId, reason, createdAt: new Date().toISOString() },
+      ];
+      setReports(next);
+      safeSet(LS.reports, next);
+    },
+    [reports]
+  );
+
+  const deleteTip = useCallback(
+    (tipId: string) => {
+      // remove from in-memory list
+      const nextTips = tips.filter((t) => t.id !== tipId);
+      setTips(nextTips);
+      // remove from userTips storage
+      const prevUserTips = safeGet<Tip[]>(LS.userTips, []);
+      safeSet(LS.userTips, prevUserTips.filter((t) => t.id !== tipId));
+      // remove associated report
+      const nextReports = reports.filter((r) => r.tipId !== tipId);
+      setReports(nextReports);
+      safeSet(LS.reports, nextReports);
+    },
+    [tips, reports]
+  );
+
+  const dismissReport = useCallback(
+    (tipId: string) => {
+      const next = reports.filter((r) => r.tipId !== tipId);
+      setReports(next);
+      safeSet(LS.reports, next);
+    },
+    [reports]
+  );
+
+  const unlockAdmin = useCallback((key: string): boolean => {
+    if (key === ADMIN_KEY) {
+      localStorage.setItem(LS.isAdmin, "true");
+      setIsAdmin(true);
+      return true;
+    }
+    return false;
+  }, []);
+
   return (
     <TipsContext.Provider
       value={{
@@ -246,9 +314,15 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         createdTips,
         canAddTip: createdTips.length < MAX_TIPS_PER_USER,
         userId,
+        isAdmin,
+        reports,
         handleVote,
         addTip,
         getTip,
+        reportTip,
+        deleteTip,
+        dismissReport,
+        unlockAdmin,
       }}
     >
       {children}
