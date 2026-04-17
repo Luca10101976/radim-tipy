@@ -308,7 +308,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
 
   // ── signIn ────────────────────────────────────────────────────────────────
   const signIn = useCallback(
-    async (email: string): Promise<"ok" | "error"> => {
+    async (email: string): Promise<string> => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
