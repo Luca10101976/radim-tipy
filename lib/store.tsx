@@ -53,7 +53,7 @@ interface TipsContextValue {
   reportTip: (tipId: string, reason: string) => Promise<void>;
   deleteTip: (tipId: string) => Promise<void>;
   dismissReport: (tipId: string) => Promise<void>;
-  signIn: (email: string) => Promise<"ok" | "error">;
+  signIn: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
 }
 
@@ -318,8 +318,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
               : undefined,
         },
       });
-      if (error) console.error("[signIn error]", error.message, error.status);
-      return error ? "error" : "ok";
+      if (error) console.error("[signIn error]", error.message, error.status, error.code);
+      return error ? `error:${error.message}` : "ok";
     },
     []
   );

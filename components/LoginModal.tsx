@@ -12,7 +12,7 @@ export default function LoginModal({ open, onClose }: Props) {
   const { signIn } = useTips();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!open) return null;
@@ -21,19 +21,19 @@ export default function LoginModal({ open, onClose }: Props) {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
-    setError(false);
+    setError(null);
     const result = await signIn(email.trim());
     setLoading(false);
     if (result === "ok") {
       setSent(true);
     } else {
-      setError(true);
+      setError(result.replace("error:", ""));
     }
   }
 
   function handleClose() {
     setSent(false);
-    setError(false);
+    setError(null);
     setEmail("");
     onClose();
   }
@@ -84,7 +84,7 @@ export default function LoginModal({ open, onClose }: Props) {
               />
               {error && (
                 <p className="text-red-500 text-xs">
-                  Něco se nepovedlo. Zkus to znovu.
+                  Chyba: {error}
                 </p>
               )}
               <button

@@ -8,7 +8,7 @@ export default function AdminClient() {
   const { isAdmin, reports, tips, deleteTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [loginError, setLoginError] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
   if (isLoading) {
@@ -25,11 +25,11 @@ export default function AdminClient() {
       e.preventDefault();
       if (!email.trim()) return;
       setLoginLoading(true);
-      setLoginError(false);
+      setLoginError(null);
       const result = await signIn(email.trim());
       setLoginLoading(false);
       if (result === "ok") setSent(true);
-      else setLoginError(true);
+      else setLoginError(result.replace("error:", ""));
     }
 
     return (
@@ -60,7 +60,7 @@ export default function AdminClient() {
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
             {loginError && (
-              <p className="text-red-500 text-xs">Něco se nepovedlo. Zkus to znovu.</p>
+              <p className="text-red-500 text-xs">Chyba: {loginError}</p>
             )}
             <button
               type="submit"
