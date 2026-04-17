@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useTips } from "@/lib/store";
-import { useMemo } from "react";
+import { useState } from "react";
 
 export default function AdminClient() {
-  const { isAdmin, reports, tips, deleteTip, dismissReport, isLoading, user } = useTips();
+  const { isAdmin, reports, tips, deleteTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [loginError, setLoginError] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
 
   if (isLoading) {
     return (
@@ -15,22 +19,91 @@ export default function AdminClient() {
     );
   }
 
-  // ── Not admin ─────────────────────────────────────────────────────────────
+  // ── Not logged in ──────────────────────────────────────────────────────────
+  if (!user) {
+    async function handleLogin(e: React.FormEvent) {
+      e.preventDefault();
+      if (!email.trim()) return;
+      setLoginLoading(true);
+      setLoginError(false);
+      const result = await signIn(email.trim());
+      setLoginLoading(false);
+      if (result === "ok") setSent(true);
+      else setLoginError(true);
+    }
+
+    return (
+      <div className="max-w-sm mx-auto pt-24">
+        <p className="text-4xl mb-5 text-center">🔐</p>
+        <h1 className="text-lg font-semibold text-gray-800 mb-1 text-center">Admin přístup</h1>
+        <p className="text-sm text-gray-500 mb-6 text-center">Přihlaš se pomocí e-mailu.</p>
+
+        {sent ? (
+          <div className="text-center">
+            <p className="text-4xl mb-3">📬</p>
+            <p className="text-sm text-gray-600">
+              Odkaz jsme poslali na <span className="font-medium">{email}</span>. Klikni na něj a budeš přihlášena.
+            </p>
+            <Link href="/" className="inline-block mt-5 text-sm text-gray-400 hover:text-gray-600">
+              ← Zpět na tipy
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleLogin} className="space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tvuj@email.cz"
+              required
+              autoFocus
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+            />
+            {loginError && (
+              <p className="text-red-500 text-xs">Něco se nepovedlo. Zkus to znovu.</p>
+            )}
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl text-sm font-medium transition-colors"
+            >
+              {loginLoading ? "Odesílám…" : "Poslat přihlašovací odkaz"}
+            </button>
+            <Link
+              href="/"
+              className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-1"
+            >
+              ← Zpět na tipy
+            </Link>
+          </form>
+        )}
+      </div>
+    );
+  }
+
+  // ── Logged in but not admin ────────────────────────────────────────────────
   if (!isAdmin) {
     return (
       <div className="max-w-sm mx-auto pt-24 text-center">
-        <p className="text-4xl mb-6">🔐</p>
-        <h1 className="text-lg font-semibold text-gray-800 mb-4">Admin přístup</h1>
+        <p className="text-4xl mb-6">🚫</p>
+        <h1 className="text-lg font-semibold text-gray-800 mb-2">Nemáš přístup</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Admin přístup pouze pro přihlášené správce.
+          Tento účet nemá administrátorská práva.
         </p>
-        <p className="text-xs text-gray-300 mb-2">debug: {user?.email ?? "no user"}</p>
-        <Link
-          href="/"
-          className="inline-block py-2.5 px-6 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors"
-        >
-          ← Zpět na tipy
-        </Link>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => signOut()}
+            className="py-2.5 px-6 border border-gray-300 hover:border-red-300 hover:text-red-500 text-gray-600 rounded-xl text-sm font-medium transition-colors"
+          >
+            Odhlásit se
+          </button>
+          <Link
+            href="/"
+            className="py-2.5 px-6 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            ← Zpět na tipy
+          </Link>
+        </div>
       </div>
     );
   }
@@ -50,7 +123,15 @@ export default function AdminClient() {
             Nahlášené tipy ({reports.length})
           </p>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Zpět</Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => signOut()}
+            className="text-xs text-gray-500 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Odhlásit
+          </button>
+          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Zpět</Link>
+        </div>
       </div>
 
       {reportsWithTips.length === 0 ? (
