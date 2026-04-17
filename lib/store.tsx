@@ -116,20 +116,23 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     async function init() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      if (mounted) setUser(currentUser);
-      await loadTips();
-      if (currentUser) {
-        await loadVotes(currentUser.id);
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-        if (currentUser.email === adminEmail) {
-          await loadReports();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user ?? null;
+        if (mounted) setUser(currentUser);
+        await loadTips();
+        if (currentUser) {
+          await loadVotes(currentUser.id);
+          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz";
+          if (currentUser.email === adminEmail) {
+            await loadReports();
+          }
         }
+      } catch (e) {
+        console.error("[init error]", e);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
-      if (mounted) setIsLoading(false);
     }
 
     init();
@@ -140,7 +143,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         if (mounted) setUser(newUser);
         if (newUser) {
           await loadVotes(newUser.id);
-          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz";
           if (newUser.email === adminEmail) {
             await loadReports();
           }
