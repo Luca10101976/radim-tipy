@@ -9,6 +9,21 @@ interface Props {
   tip: TipWithStats;
 }
 
+function votesLabel(total: number): string {
+  if (total === 0) return "Zatím nikdo nezkusil";
+  if (total === 1) return "1 zkušenost";
+  return `${total} zkušeností`;
+}
+
+function statsLabel(total: number, successRate: number): string | null {
+  if (total === 0) return null;
+  if (total < 3) {
+    if (total === 1) return "Zatím 1 člověk vyzkoušel";
+    return `Zatím málo zkušeností (${total} hlasy)`;
+  }
+  return `${Math.round(successRate * 100)} % lidí říká, že funguje (${total} hlasů)`;
+}
+
 export default function VoteButtons({ tip }: Props) {
   const { handleVote, votedTips, user } = useTips();
   const myVote = votedTips[tip.id] ?? null;
@@ -18,7 +33,7 @@ export default function VoteButtons({ tip }: Props) {
   function btnClass(type: VoteType) {
     const isActive = myVote === type;
     const base =
-      "flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-base transition-all select-none";
+      "flex-1 flex items-center justify-center gap-2 py-4 px-5 rounded-xl font-semibold text-base transition-all select-none";
     if (type === "up") {
       return isActive
         ? `${base} bg-green-500 text-white shadow-md ring-2 ring-green-300`
@@ -37,17 +52,20 @@ export default function VoteButtons({ tip }: Props) {
     handleVote(tip.id, type);
   }
 
+  const label = statsLabel(total, tip.success_rate);
+
   return (
     <>
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-3">
+      <div className="flex flex-col gap-5">
+        {/* Buttons */}
+        <div className="flex gap-4">
           <button onClick={() => handleClick("up")} className={btnClass("up")}>
-            <span className="text-xl">👍</span>
+            <span className="text-2xl">👍</span>
             Fungovalo mi
           </button>
           <button onClick={() => handleClick("down")} className={btnClass("down")}>
-            <span className="text-xl">👎</span>
+            <span className="text-2xl">👎</span>
             Nefungovalo mi
           </button>
         </div>
@@ -58,39 +76,46 @@ export default function VoteButtons({ tip }: Props) {
           </p>
         )}
 
+        {/* Counts row */}
         <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span
-            className={`font-medium tabular-nums ${myVote === "up" ? "text-green-600" : "text-gray-500"}`}
-          >
+          <span className={`font-medium tabular-nums ${myVote === "up" ? "text-green-600" : "text-gray-500"}`}>
             👍 {tip.votes_up}
           </span>
-          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                tip.success_rate > 0.7
-                  ? "bg-green-400"
-                  : tip.success_rate >= 0.4
-                  ? "bg-yellow-400"
-                  : "bg-red-400"
-              }`}
-              style={{ width: total === 0 ? "0%" : `${tip.success_rate * 100}%` }}
-            />
-          </div>
-          <span
-            className={`font-medium tabular-nums ${myVote === "down" ? "text-red-500" : "text-gray-500"}`}
-          >
+
+          {/* Progress bar — only when enough votes */}
+          {total >= 3 ? (
+            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  tip.success_rate > 0.7
+                    ? "bg-green-400"
+                    : tip.success_rate >= 0.4
+                    ? "bg-yellow-400"
+                    : "bg-red-400"
+                }`}
+                style={{ width: `${tip.success_rate * 100}%` }}
+              />
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+
+          <span className={`font-medium tabular-nums ${myVote === "down" ? "text-red-500" : "text-gray-500"}`}>
             👎 {tip.votes_down}
           </span>
         </div>
 
-        {total > 0 ? (
+        {/* Stats text */}
+        {label && (
           <p className="text-center text-sm font-medium text-gray-700">
-            {Math.round(tip.success_rate * 100)} % lidí říká, že funguje
-            <span className="text-gray-400 font-normal"> ({total} hodnocení)</span>
+            {label}
           </p>
-        ) : (
-          <p className="text-center text-sm text-gray-400">Zatím nikdo nehlasoval.</p>
         )}
+
+        {/* Votes count */}
+        <p className="text-center text-xs text-gray-400">
+          {votesLabel(total)}
+        </p>
       </div>
     </>
   );

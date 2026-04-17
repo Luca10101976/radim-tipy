@@ -78,7 +78,7 @@ export default function TipDetailClient({ id }: Props) {
 
         {/* Author result */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Původní autor říká</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Zkušenost autora</h2>
           <span
             className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full ${
               tip.authorResult === "fungovalo"
