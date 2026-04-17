@@ -56,6 +56,7 @@ export interface Tip {
   votes_up: number;
   votes_down: number;
   createdAt: string;
+  parent_id?: string | null;
 }
 
 export interface TipWithStats extends Tip {

@@ -33,6 +33,7 @@ function mapTip(row: Record<string, unknown>): Tip {
     votes_up: (row.votes_up as number) ?? 0,
     votes_down: (row.votes_down as number) ?? 0,
     createdAt: (row.created_at as string)?.split("T")[0] ?? "",
+    parent_id: (row.parent_id as string) ?? null,
   };
 }
 
@@ -244,6 +245,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
           user_id: user.id,
           hidden: false,
+          parent_id: tip.parent_id ?? null,
         })
         .select()
         .single();

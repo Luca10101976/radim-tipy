@@ -61,6 +61,8 @@ export default function TipListClient() {
       .filter((t) => {
         // hide reported tips from public (admin sees everything)
         if (!isAdmin && reportedTipIds.has(t.id)) return false;
+        // Never show variants (child tips) in the main list
+        if (t.parent_id) return false;
         const matchSearch =
           !q ||
           t.title.toLowerCase().includes(q) ||

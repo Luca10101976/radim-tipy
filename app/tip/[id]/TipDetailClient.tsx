@@ -5,7 +5,7 @@ import { computeStats } from "@/lib/types";
 import VoteButtons from "@/components/VoteButtons";
 import RadimSection from "@/components/RadimSection";
 import ReportButton from "@/components/ReportButton";
-import ExperienceSection from "@/components/ExperienceSection";
+import VariantSection from "@/components/VariantSection";
 import Link from "next/link";
 
 interface Props {
@@ -43,11 +43,20 @@ export default function TipDetailClient({ id }: Props) {
 
   const tip = computeStats(raw);
 
+  // If this is a variant, show a link back to the parent tip
+  const isVariant = !!raw.parent_id;
+
   return (
     <div className="max-w-xl mx-auto">
-      <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 inline-flex items-center gap-1 mb-6 transition-colors">
-        ← Zpět
+      <Link href={isVariant ? `/tip/${raw.parent_id}` : "/"} className="text-sm text-gray-400 hover:text-gray-600 inline-flex items-center gap-1 mb-6 transition-colors">
+        ← {isVariant ? "Zpět na původní tip" : "Zpět"}
       </Link>
+
+      {isVariant && (
+        <div className="mb-4 text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2">
+          Toto je alternativní způsob k jinému tipu.
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
         {/* Header */}
@@ -110,8 +119,8 @@ export default function TipDetailClient({ id }: Props) {
           <VoteButtons tip={tip} />
         </section>
 
-        {/* Experiences */}
-        <ExperienceSection tipId={tip.id} />
+        {/* Variants — only for main tips, not for variants themselves */}
+        {!isVariant && <VariantSection parentTip={raw} />}
 
         {/* Report */}
         <ReportButton tipId={tip.id} />
