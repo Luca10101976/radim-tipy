@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useTips } from "@/lib/store";
+import { useMemo } from "react";
 
 export default function AdminClient() {
-  const { isAdmin, reports, tips, deleteTip, dismissReport, isLoading } = useTips();
+  const { isAdmin, reports, tips, deleteTip, dismissReport, isLoading, user } = useTips();
 
   if (isLoading) {
     return (
@@ -23,6 +24,7 @@ export default function AdminClient() {
         <p className="text-sm text-gray-500 mb-6">
           Admin přístup pouze pro přihlášené správce.
         </p>
+        <p className="text-xs text-gray-300 mb-2">debug: {user?.email ?? "no user"}</p>
         <Link
           href="/"
           className="inline-block py-2.5 px-6 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors"
