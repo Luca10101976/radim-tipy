@@ -123,10 +123,9 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       }, 6000);
 
       try {
-        const sessionPromise = supabase.auth.getSession();
-        const { data: { session } } = await sessionPromise;
-        const currentUser = session?.user ?? null;
-        if (mounted) setUser(currentUser);
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        console.log("[auth] user:", currentUser?.email ?? "none");
+        if (mounted) setUser(currentUser ?? null);
         await loadTips();
         if (currentUser) {
           await loadVotes(currentUser.id);
@@ -329,6 +328,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setVotedTips({});
     setReports([]);
+    if (typeof window !== "undefined") window.location.reload();
   }, []);
 
   return (
