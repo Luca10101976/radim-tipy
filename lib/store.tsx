@@ -123,9 +123,10 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       }, 6000);
 
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user ?? null;
         console.log("[auth] user:", currentUser?.email ?? "none");
-        if (mounted) setUser(currentUser ?? null);
+        if (mounted) setUser(currentUser);
         await loadTips();
         if (currentUser) {
           await loadVotes(currentUser.id);
