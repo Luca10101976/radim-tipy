@@ -116,8 +116,14 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     async function init() {
+      // Safety timeout — never hang on loading forever
+      const safetyTimer = setTimeout(() => {
+        if (mounted) setIsLoading(false);
+      }, 6000);
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session } } = await sessionPromise;
         const currentUser = session?.user ?? null;
         if (mounted) setUser(currentUser);
         await loadTips();
@@ -131,6 +137,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.error("[init error]", e);
       } finally {
+        clearTimeout(safetyTimer);
         if (mounted) setIsLoading(false);
       }
     }
