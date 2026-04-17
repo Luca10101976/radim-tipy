@@ -84,7 +84,9 @@ export default function LoginModal({ open, onClose }: Props) {
               />
               {error && (
                 <p className="text-red-500 text-xs">
-                  Chyba: {error}
+                  {error.includes("rate limit")
+                    ? "Příliš mnoho pokusů. Zkus to za hodinu."
+                    : "Něco se nepovedlo. Zkus to znovu."}
                 </p>
               )}
               <button

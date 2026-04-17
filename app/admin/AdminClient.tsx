@@ -60,7 +60,11 @@ export default function AdminClient() {
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
             {loginError && (
-              <p className="text-red-500 text-xs">Chyba: {loginError}</p>
+              <p className="text-red-500 text-xs">
+                {loginError.includes("rate limit")
+                  ? "Příliš mnoho pokusů. Zkus to za hodinu."
+                  : "Něco se nepovedlo. Zkus to znovu."}
+              </p>
             )}
             <button
               type="submit"
