@@ -65,8 +65,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [reports, setReports] = useState<Report[]>([]);
 
-  const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz";
-  const isAdmin = !!user && user.email === ADMIN_EMAIL;
+  const ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz").trim();
+  const isAdmin = !!user && (user.email ?? "").trim() === ADMIN_EMAIL;
 
   // ── load tips ────────────────────────────────────────────────────────────
   const loadTips = useCallback(async () => {
