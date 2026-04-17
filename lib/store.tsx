@@ -69,6 +69,11 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     !!user &&
     user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
+  // Temporary debug
+  if (typeof window !== "undefined" && user) {
+    console.log("[admin]", { email: user.email, adminEnv: process.env.NEXT_PUBLIC_ADMIN_EMAIL, isAdmin });
+  }
+
   // ── load tips ────────────────────────────────────────────────────────────
   const loadTips = useCallback(async () => {
     const { data } = await supabase
