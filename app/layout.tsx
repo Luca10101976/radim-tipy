@@ -4,7 +4,6 @@ import Link from "next/link";
 import "./globals.css";
 import { TipsProvider } from "@/lib/store";
 import AdminBadge from "@/components/AdminBadge";
-import HeaderAuth from "@/components/HeaderAuth";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -33,7 +32,6 @@ export default function RootLayout({
               </Link>
               <div className="flex items-center gap-3">
                 <AdminBadge />
-                <HeaderAuth />
                 <Link
                   href="/pridat"
                   className="text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
