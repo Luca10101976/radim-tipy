@@ -66,8 +66,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [reports, setReports] = useState<Report[]>([]);
 
-  const ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz").trim();
-  const isAdmin = !!user && (user.email ?? "").trim() === ADMIN_EMAIL;
+  const ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "").trim();
+  const isAdmin = !!user && !!ADMIN_EMAIL && (user.email ?? "").trim() === ADMIN_EMAIL;
 
   // ── load tips ────────────────────────────────────────────────────────────
   const loadTips = useCallback(async () => {
@@ -125,12 +125,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const currentUser = session?.user ?? null;
-        console.log("[auth] user:", currentUser?.email ?? "none");
+        if (process.env.NODE_ENV === "development") console.log("[auth] user:", currentUser?.email ?? "none");
         if (mounted) setUser(currentUser);
         await loadTips();
         if (currentUser) {
           await loadVotes(currentUser.id);
-          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz";
+          const adminEmail = ADMIN_EMAIL;
           if (currentUser.email === adminEmail) {
             await loadReports();
           }
@@ -151,7 +151,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         if (mounted) setUser(newUser);
         if (newUser) {
           await loadVotes(newUser.id);
-          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "snelda@panbatoh.cz";
+          const adminEmail = ADMIN_EMAIL;
           if (newUser.email === adminEmail) {
             await loadReports();
           }
@@ -287,23 +287,25 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   // ── deleteTip ─────────────────────────────────────────────────────────────
   const deleteTip = useCallback(
     async (tipId: string) => {
+      if (!isAdmin) return; // guard: only admin
       await supabase.from("tips").delete().eq("id", tipId);
       setTips((prev) => prev.filter((t) => t.id !== tipId));
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
-    []
+    [isAdmin]
   );
 
   // ── dismissReport ─────────────────────────────────────────────────────────
   const dismissReport = useCallback(
     async (tipId: string) => {
+      if (!isAdmin) return; // guard: only admin
       // delete all reports for this tip
       await supabase.from("reports").delete().eq("tip_id", tipId);
       // unhide the tip
       await supabase.from("tips").update({ hidden: false }).eq("id", tipId);
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
-    []
+    [isAdmin]
   );
 
   // ── signIn ────────────────────────────────────────────────────────────────
