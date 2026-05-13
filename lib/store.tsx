@@ -275,11 +275,9 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         { onConflict: "tip_id,user_id" }
       );
 
-      // hide the tip
-      await supabase.from("tips").update({ hidden: true }).eq("id", tipId);
-
-      // remove from local state
-      setTips((prev) => prev.filter((t) => t.id !== tipId));
+      // Tip zůstane viditelný — skrýt může jen admin přes admin panel.
+      // (Okamžité skrývání bylo bezpečnostní riziko: kdokoli přihlášený
+      //  mohl libovolný tip skrýt přímým API voláním.)
     },
     [user]
   );
