@@ -87,26 +87,34 @@ export default function TipDetailClient({ id }: Props) {
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{tip.solution}</p>
         </section>
 
-        {/* Author result — Radim říká */}
-        <section>
-          <div className="flex items-center gap-3">
-            <Image
-              src="/radim-maskot.png"
-              alt="Radim"
-              width={44}
-              height={44}
-              className="rounded-full flex-shrink-0"
-            />
-            <div className="relative bg-gray-50 border border-gray-200 rounded-2xl rounded-tl-none px-4 py-2.5">
-              <p className="text-xs text-gray-400 mb-0.5">Radim říká:</p>
-              <p className={`text-sm font-semibold ${
-                tip.authorResult === "fungovalo" ? "text-green-700" : "text-red-600"
+        {/* Radim říká — podle poměru hlasů */}
+        {tip.votes_up !== tip.votes_down && (tip.votes_up + tip.votes_down) > 0 && (
+          <section>
+            <div className="flex items-center gap-3">
+              <Image
+                src="/radim-maskot.png"
+                alt="Radim"
+                width={44}
+                height={44}
+                className="rounded-full flex-shrink-0"
+              />
+              <div className={`relative border rounded-2xl rounded-tl-none px-4 py-2.5 ${
+                tip.votes_up > tip.votes_down
+                  ? "bg-green-50 border-green-200"
+                  : "bg-red-50 border-red-200"
               }`}>
-                {tip.authorResult === "fungovalo" ? "👍 Mně to fungovalo!" : "👎 Mně to nefungovalo."}
-              </p>
+                <p className="text-xs text-gray-400 mb-0.5">Radim říká:</p>
+                <p className={`text-sm font-semibold ${
+                  tip.votes_up > tip.votes_down ? "text-green-700" : "text-red-600"
+                }`}>
+                  {tip.votes_up > tip.votes_down
+                    ? "👍 Tohle doporučuji!"
+                    : "👎 Zkusil bych něco jiného."}
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Warning */}
         {tip.warning && (
