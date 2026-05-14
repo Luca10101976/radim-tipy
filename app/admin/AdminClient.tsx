@@ -137,41 +137,6 @@ export default function AdminClient() {
         </div>
       </div>
 
-      {/* Smazat vše */}
-      <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-2xl">
-        {!confirmDeleteAll ? (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-red-700">Smazat všechny tipy z webu</p>
-            <button
-              onClick={() => setConfirmDeleteAll(true)}
-              className="text-xs text-red-600 border border-red-300 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              Smazat vše
-            </button>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm font-semibold text-red-700 mb-3">
-              Opravdu smazat všechny tipy? Tato akce je nevratná.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={async () => { await deleteAllTips(); setConfirmDeleteAll(false); }}
-                className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl transition-colors"
-              >
-                Ano, smazat vše
-              </button>
-              <button
-                onClick={() => setConfirmDeleteAll(false)}
-                className="flex-1 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl transition-colors"
-              >
-                Zrušit
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── ČEKÁ NA SCHVÁLENÍ ── */}
       <section className="mb-10">
         <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -288,6 +253,37 @@ export default function AdminClient() {
                     Ignorovat
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── VŠECHNY TIPY ── */}
+      <section className="mt-10">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          Všechny tipy
+          <span className="bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full">
+            {tips.length}
+          </span>
+        </h2>
+
+        {tips.length === 0 ? (
+          <p className="text-sm text-gray-400">Žádné tipy.</p>
+        ) : (
+          <div className="space-y-2">
+            {tips.map((tip) => (
+              <div key={tip.id} className="flex items-center justify-between gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{tip.title}</p>
+                  <p className="text-xs text-gray-400">{tip.category} · {tip.createdAt}</p>
+                </div>
+                <button
+                  onClick={() => deleteTip(tip.id)}
+                  className="flex-shrink-0 text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Smazat
+                </button>
               </div>
             ))}
           </div>
