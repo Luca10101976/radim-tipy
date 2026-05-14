@@ -183,8 +183,11 @@ export default function TipListClient() {
       {/* ── SORT + COUNT ── */}
       <div className="flex items-center justify-between mb-5">
         <p className="text-sm text-gray-400">
-          {filtered.length}{" "}
-          {filtered.length === 1 ? "tip" : filtered.length < 5 ? "tipy" : "tipů"}
+          {isLoading ? (
+            <span className="inline-block w-16 h-3 bg-gray-200 rounded-full animate-pulse" />
+          ) : (
+            <>{filtered.length}{" "}{filtered.length === 1 ? "tip" : filtered.length < 5 ? "tipy" : "tipů"}</>
+          )}
         </p>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400">Seřadit:</span>
