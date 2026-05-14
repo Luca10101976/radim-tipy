@@ -41,7 +41,8 @@ function SuccessBar({ rate, total }: { rate: number; total: number }) {
 }
 
 export default function TipCard({ tip }: Props) {
-  const { handleVote, votedTips, user, localReportedIds } = useTips();
+  const { handleVote, votedTips, user, localReportedIds, tips } = useTips();
+  const parentTip = tip.parent_id ? tips.find((t) => t.id === tip.parent_id) : null;
   const myVote: VoteType | null = votedTips[tip.id] ?? null;
   const total = tip.votes_up + tip.votes_down;
   const [loginOpen, setLoginOpen] = useState(false);
@@ -89,11 +90,21 @@ export default function TipCard({ tip }: Props) {
               {tip.category}
             </span>
             {tip.parent_id && (
-              <span className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">
+              <Link
+                href={`/tip/${tip.parent_id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full hover:bg-teal-100 transition-colors"
+              >
                 ↳ alternativa
-              </span>
+              </Link>
             )}
           </div>
+          {parentTip && (
+            <p className="text-xs text-gray-400 mb-1">
+              reakce na:{" "}
+              <span className="text-gray-500 font-medium">{parentTip.title}</span>
+            </p>
+          )}
           <h3 className="font-semibold text-gray-900 mb-1 text-sm leading-tight group-hover:text-indigo-700 transition-colors">
             {tip.title}
           </h3>
