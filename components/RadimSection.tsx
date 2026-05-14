@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { TipWithStats } from "@/lib/types";
 
 interface Props {
@@ -51,9 +52,13 @@ export default function RadimSection({ tip }: Props) {
   return (
     <div className={`rounded-xl border p-4 ${color}`}>
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white border-2 border-current flex items-center justify-center font-bold text-base">
-          R
-        </div>
+        <Image
+          src="/radim-maskot.png"
+          alt="Radim"
+          width={40}
+          height={40}
+          className="rounded-full flex-shrink-0"
+        />
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide opacity-60 mb-1">
             Radim říká:
