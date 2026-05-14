@@ -20,11 +20,13 @@ export const metadata: Metadata = {
     siteName: "Radim.pro",
     locale: "cs_CZ",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Radim.pro" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Radim.pro – tebe, když nevíš co s tím domem",
     description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
+    images: ["/og-image.png"],
   },
 };
 
