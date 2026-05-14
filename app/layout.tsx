@@ -10,11 +10,11 @@ import HeaderAuth from "@/components/HeaderAuth";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Radim.pro – tebe, když nevíš co s tím domem",
+  title: "Radim.pro – tebe, když doma nevíš co s problémem",
   description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
   metadataBase: new URL("https://radim.pro"),
   openGraph: {
-    title: "Radim.pro – tebe, když nevíš co s tím domem",
+    title: "Radim.pro – tebe, když doma nevíš co s problémem",
     description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
     url: "https://radim.pro",
     siteName: "Radim.pro",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Radim.pro – tebe, když nevíš co s tím domem",
+    title: "Radim.pro – tebe, když doma nevíš co s problémem",
     description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
     images: ["/og-image.png"],
   },
