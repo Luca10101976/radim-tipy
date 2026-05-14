@@ -11,7 +11,21 @@ const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Radim.pro – tebe, když nevíš",
-  description: "Radim.pro – tebe, když nevíš. Domácí tipy ověřené ostatními. Zjisti, co fungovalo – a co ne.",
+  description: "Domácí tipy ověřené ostatními. Víš předem, co funguje – a co ne.",
+  metadataBase: new URL("https://radim.pro"),
+  openGraph: {
+    title: "Radim.pro – tebe, když nevíš",
+    description: "Domácí tipy ověřené ostatními. Víš předem, co funguje – a co ne.",
+    url: "https://radim.pro",
+    siteName: "Radim.pro",
+    locale: "cs_CZ",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Radim.pro – tebe, když nevíš",
+    description: "Domácí tipy ověřené ostatními. Víš předem, co funguje – a co ne.",
+  },
 };
 
 export default function RootLayout({
