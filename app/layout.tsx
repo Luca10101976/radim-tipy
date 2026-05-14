@@ -10,12 +10,12 @@ import HeaderAuth from "@/components/HeaderAuth";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Radim.pro – tebe, když nevíš",
-  description: "Domácí tipy ověřené ostatními. Víš předem, co funguje – a co ne.",
+  title: "Radim.pro – tebe, když nevíš co s tím domem",
+  description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
   metadataBase: new URL("https://radim.pro"),
   openGraph: {
-    title: "Radim.pro – tebe, když nevíš",
-    description: "Domácí tipy ověřené ostatními. Víš předem, co funguje – a co ne.",
+    title: "Radim.pro – tebe, když nevíš co s tím domem",
+    description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
     url: "https://radim.pro",
     siteName: "Radim.pro",
     locale: "cs_CZ",
@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Radim.pro – tebe, když nevíš",
-    description: "Domácí tipy ověřené ostatními. Víš předem, co funguje – a co ne.",
+    title: "Radim.pro – tebe, když nevíš co s tím domem",
+    description: "Pračka smrdí, vodní kámen, mastnota na digestoři – Radim.pro sbírá domácí tipy ověřené skutečnými lidmi. Víš předem, co funguje a co ne.",
   },
 };
 

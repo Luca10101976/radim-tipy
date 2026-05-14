@@ -1,11 +1,18 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
-export const runtime = "edge";
-export const alt = "Radim.pro – tebe, když nevíš";
+export const runtime = "nodejs";
+export const alt = "Radim.pro – tebe, když nevíš. Domácí tipy ověřené ostatními.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OGImage() {
+export default async function OGImage() {
+  // Načíst maskotu jako buffer → base64 data URL (funguje spolehlivě)
+  const imgPath = path.join(process.cwd(), "public", "radim-maskot.png");
+  const imgBuffer = await readFile(imgPath);
+  const imgBase64 = `data:image/png;base64,${imgBuffer.toString("base64")}`;
+
   return new ImageResponse(
     (
       <div
@@ -50,15 +57,15 @@ export default function OGImage() {
         {/* Maskot */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://radim.pro/radim-maskot.png"
+          src={imgBase64}
           width={180}
           height={180}
           style={{ borderRadius: "50%", marginBottom: 32, objectFit: "cover" }}
           alt="Radim"
         />
 
-        {/* Logo text */}
-        <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 16 }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 20 }}>
           <span style={{ fontSize: 72, fontWeight: 800, color: "#0f766e", letterSpacing: "-2px" }}>
             Radim
           </span>
@@ -70,16 +77,15 @@ export default function OGImage() {
         {/* Tagline */}
         <div
           style={{
-            fontSize: 28,
+            fontSize: 26,
             color: "#6b7280",
             fontWeight: 400,
             textAlign: "center",
-            maxWidth: 700,
+            maxWidth: 750,
+            lineHeight: 1.5,
           }}
         >
-          Domácí tipy ověřené ostatními.
-          <br />
-          Víš předem, co funguje — a co ne.
+          Domácí tipy ověřené ostatními.{"\n"}Víš předem, co funguje – a co ne.
         </div>
       </div>
     ),
