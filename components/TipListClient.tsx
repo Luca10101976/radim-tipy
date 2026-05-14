@@ -132,7 +132,7 @@ export default function TipListClient({ initialTips }: Props) {
       <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]">
         <button
           onClick={() => selectCategory(null)}
-          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+          className={`flex-shrink-0 whitespace-nowrap text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
             !activeCategory
               ? "bg-teal-600 text-white border-teal-600"
               : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
@@ -144,7 +144,7 @@ export default function TipListClient({ initialTips }: Props) {
           <button
             key={cat}
             onClick={() => selectCategory(activeCategory === cat ? null : cat)}
-            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+            className={`flex-shrink-0 whitespace-nowrap text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
               activeCategory === cat
                 ? "bg-teal-600 text-white border-teal-600"
                 : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
