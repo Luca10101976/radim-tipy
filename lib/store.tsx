@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
-import { Tip, Category } from "./types";
+import { Tip, mapTip } from "./types";
 
 export type VoteType = "up" | "down";
 
@@ -18,24 +18,6 @@ export interface Report {
   tipId: string;
   reason: string;
   createdAt: string;
-}
-
-function mapTip(row: Record<string, unknown>): Tip {
-  return {
-    id: row.id as string,
-    title: row.title as string,
-    category: row.category as Category,
-    problem: row.problem as string,
-    solution: row.solution as string,
-    authorResult: row.author_result as "fungovalo" | "nefungovalo",
-    warning: (row.warning as string) ?? undefined,
-    tags: (row.tags as string[]) ?? [],
-    votes_up: (row.votes_up as number) ?? 0,
-    votes_down: (row.votes_down as number) ?? 0,
-    createdAt: (row.created_at as string)?.split("T")[0] ?? "",
-    parent_id: (row.parent_id as string) ?? null,
-    pending: (row.pending as boolean) ?? false,
-  };
 }
 
 interface TipsContextValue {
@@ -134,58 +116,38 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ── init: auth state listener ────────────────────────────────────────────
+  // ── Auth bootstrap ───────────────────────────────────────────────────────
+  // Tipy už načetl server. My řešíme jen auth a uživatelská data.
   useEffect(() => {
     let mounted = true;
 
-    async function init() {
-      const safetyTimer = setTimeout(() => {
-        if (mounted) setIsLoading(false);
-      }, 6000);
-
-      // KROK 1: Tipy načíst VŽDY, nezávisle na auth (anon read je povolen)
-      try {
-        await loadTips();
-      } catch (e) {
-        console.error("[loadTips error]", e);
-      }
-
-      // KROK 2: Auth samostatně — pokud selže, tipy jsou už načteny
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        if (process.env.NODE_ENV === "development") console.log("[auth] user:", currentUser?.email ?? "none");
-        if (mounted) setUser(currentUser);
-        if (currentUser) {
-          await loadVotes(currentUser.id);
-          const adminEmail = ADMIN_EMAIL;
-          if (currentUser.email === adminEmail) {
-            await loadReports();
-            await loadPendingTips();
-          }
-        }
-      } catch (e) {
-        console.error("[auth init error]", e);
-        // I když auth selže (lock conflict), tipy jsou už načteny → onAuthStateChange to dořeší
-      }
-
-      clearTimeout(safetyTimer);
-      if (mounted) setIsLoading(false);
-    }
-
-    init();
-
+    // Pouze onAuthStateChange — fires INITIAL_SESSION při mount,
+    // takže pokrývá i případ "přihlášený uživatel po refreshi".
+    // Nepoužíváme getSession() abychom se vyhnuli lock konfliktu.
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         const newUser = session?.user ?? null;
-        if (mounted) setUser(newUser);
+        setUser(newUser);
+        setIsLoading(false);
+
         if (newUser) {
-          await loadVotes(newUser.id);
-          const adminEmail = ADMIN_EMAIL;
-          if (newUser.email === adminEmail) {
-            await loadReports();
-            await loadPendingTips();
-          }
+          // Načti uživatelská data paralelně — žádný sériový řetěz
+          const isAdminUser =
+            !!ADMIN_EMAIL && (newUser.email ?? "").trim() === ADMIN_EMAIL;
+          Promise.all([
+            loadVotes(newUser.id).catch((e) => console.error("[loadVotes]", e)),
+            isAdminUser
+              ? loadReports().catch((e) => console.error("[loadReports]", e))
+              : Promise.resolve(),
+            isAdminUser
+              ? loadPendingTips().catch((e) => console.error("[loadPendingTips]", e))
+              : Promise.resolve(),
+            // Tipy znovu načteme jen pokud je admin (vidí i pending/hidden)
+            isAdminUser
+              ? loadTips().catch((e) => console.error("[loadTips]", e))
+              : Promise.resolve(),
+          ]);
         } else {
           setVotedTips({});
           setReports([]);
@@ -198,7 +160,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [loadTips, loadVotes, loadReports, loadPendingTips]);
+  }, [ADMIN_EMAIL, loadTips, loadVotes, loadReports, loadPendingTips]);
 
   // ── handleVote ────────────────────────────────────────────────────────────
   const handleVote = useCallback(

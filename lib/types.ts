@@ -65,6 +65,25 @@ export interface TipWithStats extends Tip {
   success_rate: number;
 }
 
+// Mapování DB řádku na Tip (sdílené mezi serverem a klientem)
+export function mapTip(row: Record<string, unknown>): Tip {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    category: row.category as Category,
+    problem: row.problem as string,
+    solution: row.solution as string,
+    authorResult: row.author_result as "fungovalo" | "nefungovalo",
+    warning: (row.warning as string) ?? undefined,
+    tags: (row.tags as string[]) ?? [],
+    votes_up: (row.votes_up as number) ?? 0,
+    votes_down: (row.votes_down as number) ?? 0,
+    createdAt: ((row.created_at as string) ?? "").split("T")[0] ?? "",
+    parent_id: (row.parent_id as string) ?? null,
+    pending: (row.pending as boolean) ?? false,
+  };
+}
+
 export function computeStats(tip: Tip): TipWithStats {
   const total = tip.votes_up + tip.votes_down;
   return {

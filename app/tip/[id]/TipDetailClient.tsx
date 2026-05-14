@@ -1,7 +1,7 @@
 "use client";
 
 import { useTips } from "@/lib/store";
-import { computeStats } from "@/lib/types";
+import { computeStats, Tip } from "@/lib/types";
 import VoteButtons from "@/components/VoteButtons";
 import RadimSection from "@/components/RadimSection";
 import ReportButton from "@/components/ReportButton";
@@ -9,26 +9,17 @@ import VariantSection from "@/components/VariantSection";
 import Link from "next/link";
 
 interface Props {
-  id: string;
+  initialTip: Tip;
+  initialVariants: Tip[];
 }
 
-export default function TipDetailClient({ id }: Props) {
+export default function TipDetailClient({ initialTip, initialVariants }: Props) {
   const { getTip, reportedTipIds, isAdmin } = useTips();
-  const raw = getTip(id);
-
-  if (!raw) {
-    return (
-      <div className="text-center py-24">
-        <p className="text-gray-500">Tip nenalezen.</p>
-        <Link href="/" className="text-indigo-600 text-sm mt-2 inline-block hover:underline">
-          ← Zpět na hlavní stránku
-        </Link>
-      </div>
-    );
-  }
+  // Preferuj klientskou verzi (po hlasování), fallback na server data
+  const raw = getTip(initialTip.id) ?? initialTip;
 
   // Reported tip — hide from public
-  if (reportedTipIds.has(id) && !isAdmin) {
+  if (reportedTipIds.has(raw.id) && !isAdmin) {
     return (
       <div className="text-center py-24">
         <p className="text-4xl mb-4">🚫</p>
@@ -106,7 +97,7 @@ export default function TipDetailClient({ id }: Props) {
         </section>
 
         {/* Variants — only for main tips, not for variants themselves */}
-        {!isVariant && <VariantSection parentTip={raw} />}
+        {!isVariant && <VariantSection parentTip={raw} initialVariants={initialVariants} />}
 
         {/* Report */}
         <ReportButton tipId={tip.id} />

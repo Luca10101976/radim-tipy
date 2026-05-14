@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useTips } from "@/lib/store";
 import {
@@ -9,6 +9,7 @@ import {
   getTagsForCategory,
   getAllUniqueTags,
   Category,
+  Tip,
 } from "@/lib/types";
 import TipCard from "./TipCard";
 import RadimAvatar from "./RadimAvatar";
@@ -23,24 +24,17 @@ const RADIM_HINTS = [
 
 const RADIM_EMPTY = "Tohle by se hodilo vědět.";
 
-function TipSkeleton() {
-  return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 animate-pulse">
-      <div className="h-3 w-24 bg-gray-100 rounded-full mb-3" />
-      <div className="h-4 w-3/4 bg-gray-200 rounded-full mb-2" />
-      <div className="h-3 w-full bg-gray-100 rounded-full mb-1" />
-      <div className="h-3 w-2/3 bg-gray-100 rounded-full mb-4" />
-      <div className="h-2 w-full bg-gray-100 rounded-full mt-4 mb-3" />
-      <div className="flex gap-2 pt-3 border-t border-gray-50">
-        <div className="h-7 w-16 bg-gray-100 rounded-lg" />
-        <div className="h-7 w-16 bg-gray-100 rounded-lg" />
-      </div>
-    </div>
-  );
+interface Props {
+  initialTips: Tip[];
 }
 
-export default function TipListClient() {
-  const { tips, reportedTipIds, isAdmin, isLoading, reloadTips } = useTips();
+export default function TipListClient({ initialTips }: Props) {
+  // Tipy přijdou pre-renderované ze serveru → žádný loading state, žádné blikání
+  // Kontext potřebujeme jen pro hlasování, admin info, reported set
+  const { tips: clientTips, reportedTipIds, isAdmin } = useTips();
+  // Preferuj klientské tipy (po hlasování), fallback na server tipy
+  const tips = clientTips.length > 0 ? clientTips : initialTips;
+
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -50,28 +44,6 @@ export default function TipListClient() {
   useEffect(() => {
     setHintIndex(Math.floor(Math.random() * RADIM_HINTS.length));
   }, []);
-
-  // Záchranný retry: pokud po načtení nejsou tipy, zkus znovu po 1s
-  const retried = useRef(false);
-  useEffect(() => {
-    if (!isLoading && tips.length === 0 && !retried.current) {
-      retried.current = true;
-      const t = setTimeout(async () => {
-        const { supabase } = await import("@/lib/supabaseClient");
-        const { data } = await supabase
-          .from("tips")
-          .select("*")
-          .eq("hidden", false)
-          .eq("pending", false)
-          .order("created_at", { ascending: false });
-        if (data && data.length > 0) {
-          console.warn("[retry] tipy nebyly načteny při init, retry uspěl");
-          await reloadTips();
-        }
-      }, 800);
-      return () => clearTimeout(t);
-    }
-  }, [isLoading, tips.length, reloadTips]);
 
   function selectCategory(cat: Category | null) {
     setActiveCategory(cat);
@@ -206,11 +178,7 @@ export default function TipListClient() {
       {/* ── SORT + COUNT ── */}
       <div className="flex items-center justify-between mb-5">
         <p className="text-sm text-gray-400">
-          {isLoading ? (
-            <span className="inline-block w-16 h-3 bg-gray-200 rounded-full animate-pulse" />
-          ) : (
-            <>{filtered.length}{" "}{filtered.length === 1 ? "tip" : filtered.length < 5 ? "tipy" : "tipů"}</>
-          )}
+          {filtered.length}{" "}{filtered.length === 1 ? "tip" : filtered.length < 5 ? "tipy" : "tipů"}
         </p>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400">Seřadit:</span>
@@ -226,15 +194,8 @@ export default function TipListClient() {
         </div>
       </div>
 
-      {/* ── SKELETON při načítání ── */}
-      {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <TipSkeleton key={i} />)}
-        </div>
-      )}
-
       {/* ── LIST or EMPTY STATE ── */}
-      {!isLoading && filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-20">
           <div className="flex justify-center mb-4">
             <RadimAvatar size={72} className="opacity-70" />
@@ -251,7 +212,7 @@ export default function TipListClient() {
             Přidat tip
           </Link>
         </div>
-      ) : !isLoading && (
+      ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((tip) => (
             <TipCard key={tip.id} tip={tip} />

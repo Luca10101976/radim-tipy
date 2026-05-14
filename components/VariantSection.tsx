@@ -9,9 +9,10 @@ import LoginModal from "./LoginModal";
 
 interface Props {
   parentTip: Tip;
+  initialVariants?: Tip[];
 }
 
-export default function VariantSection({ parentTip }: Props) {
+export default function VariantSection({ parentTip, initialVariants = [] }: Props) {
   const { tips, addTip, user } = useTips();
   const [showForm, setShowForm] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -24,7 +25,9 @@ export default function VariantSection({ parentTip }: Props) {
   const [submitted, setSubmitted] = useState(false);
 
   // ── Variants: tips whose parent_id === parentTip.id ───────────────────────
-  const variants = tips.filter((t) => t.parent_id === parentTip.id);
+  // Pokud má store data, použij je, jinak fallback na server-side initialVariants
+  const clientVariants = tips.filter((t) => t.parent_id === parentTip.id);
+  const variants = clientVariants.length > 0 ? clientVariants : initialVariants;
 
   function handleAddClick() {
     if (!user) { setLoginOpen(true); return; }
