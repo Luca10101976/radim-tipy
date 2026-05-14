@@ -282,16 +282,27 @@ export default function AdminClient() {
           <div className="space-y-2">
             {tips.map((tip) => (
               <div key={tip.id} className="flex items-center justify-between gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{tip.title}</p>
-                  <p className="text-xs text-gray-400">{tip.category} · {tip.createdAt}</p>
+                <div className="min-w-0 flex-1">
+                  <Link href={`/tip/${tip.id}`} target="_blank" className="group">
+                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-teal-600 transition-colors">{tip.title}</p>
+                    <p className="text-xs text-gray-400">{tip.category} · {tip.createdAt}</p>
+                  </Link>
                 </div>
-                <button
-                  onClick={() => deleteTip(tip.id)}
-                  className="flex-shrink-0 text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  Smazat
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Link
+                    href={`/tip/${tip.id}`}
+                    target="_blank"
+                    className="text-xs text-gray-400 hover:text-teal-600 border border-gray-200 hover:border-teal-300 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Náhled
+                  </Link>
+                  <button
+                    onClick={() => deleteTip(tip.id)}
+                    className="text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Smazat
+                  </button>
+                </div>
               </div>
             ))}
           </div>
