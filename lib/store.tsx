@@ -376,7 +376,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           options: {
             // Redirect bez next parametru — jednodušší a spolehlivější.
             // Po přihlášení uživatel skončí na hlavní stránce, admin
-            // si může otevřít /admin samostatně.
+            // si může otevřít /mozek samostatně.
             emailRedirectTo:
               typeof window !== "undefined"
                 ? `${window.location.origin}/auth/callback`

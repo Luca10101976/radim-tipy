@@ -15,7 +15,7 @@ export default function AdminBadge() {
     // Klidný stav — žádné akce ke schválení, jen tichá ikona ke vstupu do adminu
     return (
       <Link
-        href="/admin"
+        href="/mozek"
         title="Admin (žádné nové akce)"
         className="flex items-center justify-center w-8 h-8 text-gray-300 hover:text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
       >
@@ -39,7 +39,7 @@ export default function AdminBadge() {
 
   return (
     <Link
-      href="/admin"
+      href="/mozek"
       title={label}
       className={`relative flex items-center gap-1.5 text-xs font-medium border px-3 py-1.5 rounded-full transition-colors ${colors}`}
     >
