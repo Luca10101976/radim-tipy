@@ -143,12 +143,19 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         if (mounted) setIsLoading(false);
       }, 6000);
 
+      // KROK 1: Tipy načíst VŽDY, nezávisle na auth (anon read je povolen)
+      try {
+        await loadTips();
+      } catch (e) {
+        console.error("[loadTips error]", e);
+      }
+
+      // KROK 2: Auth samostatně — pokud selže, tipy jsou už načteny
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const currentUser = session?.user ?? null;
         if (process.env.NODE_ENV === "development") console.log("[auth] user:", currentUser?.email ?? "none");
         if (mounted) setUser(currentUser);
-        await loadTips();
         if (currentUser) {
           await loadVotes(currentUser.id);
           const adminEmail = ADMIN_EMAIL;
@@ -158,11 +165,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (e) {
-        console.error("[init error]", e);
-      } finally {
-        clearTimeout(safetyTimer);
-        if (mounted) setIsLoading(false);
+        console.error("[auth init error]", e);
+        // I když auth selže (lock conflict), tipy jsou už načteny → onAuthStateChange to dořeší
       }
+
+      clearTimeout(safetyTimer);
+      if (mounted) setIsLoading(false);
     }
 
     init();
