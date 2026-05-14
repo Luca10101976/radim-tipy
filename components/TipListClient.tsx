@@ -98,7 +98,7 @@ export default function TipListClient() {
             <span className="text-teal-600">Tady zjistíš, co fungovalo – a co ne.</span>
           </h1>
           <p className="text-gray-400 text-sm">
-            Žádné reklamy. Jen zkušenosti lidí z domácnosti.
+            Tipy ověřené lidmi. Víš předem, co funguje.
           </p>
         </div>
 
