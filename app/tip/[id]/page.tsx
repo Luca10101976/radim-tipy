@@ -25,17 +25,31 @@ export default async function TipPage({ params }: Props) {
 
   const tip: Tip = mapTip(data as Record<string, unknown>);
 
-  // Načíst i varianty (child tipy)
-  const { data: variantsData } = await supabase
-    .from("tips")
-    .select("*")
-    .eq("parent_id", id)
-    .eq("hidden", false)
-    .eq("pending", false);
+  // Načíst varianty (child tipy) a rodiče paralelně
+  const [variantsRes, parentRes] = await Promise.all([
+    supabase
+      .from("tips")
+      .select("*")
+      .eq("parent_id", id)
+      .eq("hidden", false)
+      .eq("pending", false),
+    tip.parent_id
+      ? supabase.from("tips").select("id, title").eq("id", tip.parent_id).single()
+      : Promise.resolve({ data: null }),
+  ]);
 
-  const variants: Tip[] = variantsData
-    ? variantsData.map((r) => mapTip(r as Record<string, unknown>))
+  const variants: Tip[] = variantsRes.data
+    ? variantsRes.data.map((r) => mapTip(r as Record<string, unknown>))
     : [];
 
-  return <TipDetailClient initialTip={tip} initialVariants={variants} />;
+  const parentTitle: string | null =
+    (parentRes.data as { id: string; title: string } | null)?.title ?? null;
+
+  return (
+    <TipDetailClient
+      initialTip={tip}
+      initialVariants={variants}
+      parentTitle={parentTitle}
+    />
+  );
 }

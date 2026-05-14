@@ -12,9 +12,10 @@ import Link from "next/link";
 interface Props {
   initialTip: Tip;
   initialVariants: Tip[];
+  parentTitle?: string | null;
 }
 
-export default function TipDetailClient({ initialTip, initialVariants }: Props) {
+export default function TipDetailClient({ initialTip, initialVariants, parentTitle }: Props) {
   const { getTip, reportedTipIds, isAdmin, seedTips } = useTips();
 
   // Naplnit store server-side daty (jen 1x) — aby fungovaly optimistic
@@ -52,9 +53,18 @@ export default function TipDetailClient({ initialTip, initialVariants }: Props) 
       </Link>
 
       {isVariant && (
-        <div className="mb-4 text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2">
-          Toto je alternativní způsob k jinému tipu.
-        </div>
+        <Link
+          href={`/tip/${raw.parent_id}`}
+          className="mb-4 flex items-center gap-2 text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2 hover:bg-teal-100 transition-colors"
+        >
+          <span className="flex-shrink-0">↳</span>
+          <span>
+            Alternativa k:{" "}
+            <span className="font-semibold">
+              {parentTitle ?? "původní tip"}
+            </span>
+          </span>
+        </Link>
       )}
 
       <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
