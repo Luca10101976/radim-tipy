@@ -75,7 +75,12 @@ export default function TipListClient() {
         return matchSearch && matchCategory && matchTags;
       })
       .sort((a, b) => {
-        if (sort === "success_rate") return b.success_rate - a.success_rate;
+        if (sort === "success_rate") {
+          const diff = b.success_rate - a.success_rate;
+          // Tiebreaker: při stejném rate novější tipy výše
+          if (diff !== 0) return diff;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
         if (sort === "votes") return (b.votes_up + b.votes_down) - (a.votes_up + a.votes_down);
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
@@ -145,8 +150,8 @@ export default function TipListClient() {
         ))}
       </div>
 
-      {/* ── TAGS ── */}
-      {visibleTags.length > 0 && (
+      {/* ── TAGS — zobrazit jen když je vybraná kategorie ── */}
+      {activeCategory && visibleTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-1">
           {visibleTags.map((tag) => (
             <button
@@ -163,12 +168,7 @@ export default function TipListClient() {
           ))}
         </div>
       )}
-      {activeCategory && (
-        <p className="text-xs text-gray-300 mb-4 ml-1">
-          tagy pro: <span className="text-gray-400">{activeCategory}</span>
-        </p>
-      )}
-      {!activeCategory && <div className="mb-4" />}
+      <div className="mb-4" />
 
       {/* ── SORT + COUNT ── */}
       <div className="flex items-center justify-between mb-5">

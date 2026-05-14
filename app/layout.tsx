@@ -38,7 +38,8 @@ export default function RootLayout({
                   href="/pridat"
                   className="text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
                 >
-                  + Přidat tip
+                  <span className="hidden sm:inline">+ Přidat tip</span>
+                  <span className="sm:hidden text-base leading-none">+</span>
                 </Link>
               </div>
             </div>

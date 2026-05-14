@@ -45,6 +45,8 @@ interface TipsContextValue {
   isLoading: boolean;
   reports: Report[];
   reportedTipIds: Set<string>;
+  /** Tipy nahlášené uživatelem v aktuální session (lokální stav, bez DB) */
+  localReportedIds: Set<string>;
   handleVote: (tipId: string, type: VoteType) => Promise<void>;
   addTip: (
     tip: Omit<Tip, "id" | "votes_up" | "votes_down" | "createdAt">
@@ -65,6 +67,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reports, setReports] = useState<Report[]>([]);
+  const [localReportedIds, setLocalReportedIds] = useState<Set<string>>(new Set());
 
   const ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "").trim();
   const isAdmin = !!user && !!ADMIN_EMAIL && (user.email ?? "").trim() === ADMIN_EMAIL;
@@ -276,8 +279,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       );
 
       // Tip zůstane viditelný — skrýt může jen admin přes admin panel.
-      // (Okamžité skrývání bylo bezpečnostní riziko: kdokoli přihlášený
-      //  mohl libovolný tip skrýt přímým API voláním.)
+      // Lokálně si pamatujeme nahlášené tipy pro vizuální feedback.
+      setLocalReportedIds((prev) => new Set([...prev, tipId]));
     },
     [user]
   );
@@ -342,6 +345,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         reports,
         reportedTipIds: new Set(reports.map((r) => r.tipId)),
+        localReportedIds,
         handleVote,
         addTip,
         getTip,

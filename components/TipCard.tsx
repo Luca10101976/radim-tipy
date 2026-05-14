@@ -11,22 +11,27 @@ interface Props {
 }
 
 function SuccessBar({ rate, total }: { rate: number; total: number }) {
+  // Pod 3 hlasy nezobrazujeme procenta ani bar — příliš málo dat
+  if (total === 0) {
+    return <p className="text-xs text-gray-300">Zatím bez hlasů</p>;
+  }
+  if (total < 3) {
+    return (
+      <p className="text-xs text-gray-400">
+        {total === 1 ? "1 zkušenost" : `${total} zkušenosti`} — zatím málo dat
+      </p>
+    );
+  }
   const pct = Math.round(rate * 100);
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="text-green-600 font-medium tabular-nums">
-        👍 {total > 0 ? pct : "—"}%
-      </span>
+      <span className="text-green-600 font-medium tabular-nums">👍 {pct}%</span>
       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-300 ${
-            rate > 0.7
-              ? "bg-green-400"
-              : rate >= 0.4
-              ? "bg-yellow-400"
-              : "bg-red-400"
+            rate > 0.7 ? "bg-green-400" : rate >= 0.4 ? "bg-yellow-400" : "bg-red-400"
           }`}
-          style={{ width: total === 0 ? "0%" : `${rate * 100}%` }}
+          style={{ width: `${rate * 100}%` }}
         />
       </div>
       <span className="text-gray-400 tabular-nums">{total} hlasů</span>
@@ -35,10 +40,11 @@ function SuccessBar({ rate, total }: { rate: number; total: number }) {
 }
 
 export default function TipCard({ tip }: Props) {
-  const { handleVote, votedTips, user } = useTips();
+  const { handleVote, votedTips, user, localReportedIds } = useTips();
   const myVote: VoteType | null = votedTips[tip.id] ?? null;
   const total = tip.votes_up + tip.votes_down;
   const [loginOpen, setLoginOpen] = useState(false);
+  const isReported = localReportedIds.has(tip.id);
 
   function voteBtn(type: VoteType) {
     const isActive = myVote === type;
@@ -65,7 +71,16 @@ export default function TipCard({ tip }: Props) {
   return (
     <>
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-300 hover:shadow-md transition-all">
+      <div className={`bg-white border rounded-2xl p-4 transition-all relative ${
+        isReported
+          ? "border-orange-200 opacity-60"
+          : "border-gray-200 hover:border-gray-300 hover:shadow-md"
+      }`}>
+        {isReported && (
+          <div className="absolute top-2 right-2 text-xs bg-orange-100 text-orange-600 border border-orange-200 px-2 py-0.5 rounded-full font-medium">
+            Nahlášeno
+          </div>
+        )}
         {/* Clickable content area */}
         <Link href={`/tip/${tip.id}`} className="block group mb-3">
           <div className="flex items-start justify-between gap-2 mb-2">
