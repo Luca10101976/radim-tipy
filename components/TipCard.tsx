@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useTips, VoteType } from "@/lib/store";
 import { TipWithStats } from "@/lib/types";
 import LoginModal from "./LoginModal";
@@ -92,6 +93,25 @@ export default function TipCard({ tip }: Props) {
             {tip.title}
           </h3>
           <p className="text-xs text-gray-500 mb-3 line-clamp-2">{tip.solution}</p>
+
+          {/* Radim říká */}
+          <div className="flex items-center gap-2 mb-3">
+            <Image
+              src="/radim-maskot.png"
+              alt="Radim"
+              width={22}
+              height={22}
+              className="rounded-full flex-shrink-0"
+            />
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              tip.authorResult === "fungovalo"
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-600"
+            }`}>
+              Radim říká: {tip.authorResult === "fungovalo" ? "👍 fungovalo" : "👎 nefungovalo"}
+            </span>
+          </div>
+
           <SuccessBar rate={tip.success_rate} total={total} />
           {tip.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">

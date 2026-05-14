@@ -7,6 +7,7 @@ import RadimSection from "@/components/RadimSection";
 import ReportButton from "@/components/ReportButton";
 import VariantSection from "@/components/VariantSection";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Props {
   id: string;
@@ -86,18 +87,25 @@ export default function TipDetailClient({ id }: Props) {
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{tip.solution}</p>
         </section>
 
-        {/* Author result */}
+        {/* Author result — Radim říká */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Zkušenost autora</h2>
-          <span
-            className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full ${
-              tip.authorResult === "fungovalo"
-                ? "bg-green-50 text-green-700"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
-            {tip.authorResult === "fungovalo" ? "👍" : "👎"} {tip.authorResult}
-          </span>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/radim-maskot.png"
+              alt="Radim"
+              width={44}
+              height={44}
+              className="rounded-full flex-shrink-0"
+            />
+            <div className="relative bg-gray-50 border border-gray-200 rounded-2xl rounded-tl-none px-4 py-2.5">
+              <p className="text-xs text-gray-400 mb-0.5">Radim říká:</p>
+              <p className={`text-sm font-semibold ${
+                tip.authorResult === "fungovalo" ? "text-green-700" : "text-red-600"
+              }`}>
+                {tip.authorResult === "fungovalo" ? "👍 Mně to fungovalo!" : "👎 Mně to nefungovalo."}
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Warning */}

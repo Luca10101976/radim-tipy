@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import Link from "next/link";
+import Image from "next/image";
 import "./globals.css";
 import { TipsProvider } from "@/lib/store";
 import AdminBadge from "@/components/AdminBadge";
@@ -25,9 +26,17 @@ export default function RootLayout({
           <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
             <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
+                <Image
+                  src="/radim-maskot.png"
+                  alt="Radim maskot"
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                  priority
+                />
                 <span className="text-lg font-bold text-teal-700">Radim</span>
                 <span className="text-lg font-bold text-gray-300">.pro</span>
-                <span className="text-xs text-gray-400 font-normal pl-1 border-l border-gray-200 ml-0.5">
+                <span className="text-xs text-gray-400 font-normal pl-1 border-l border-gray-200 ml-0.5 hidden sm:inline">
                   tebe, když nevíš
                 </span>
               </Link>
