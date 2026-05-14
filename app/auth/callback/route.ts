@@ -23,5 +23,9 @@ export async function GET(request: NextRequest) {
       ? origin
       : ALLOWED_ORIGIN;
 
-  return NextResponse.redirect(safeOrigin);
+  // Zachovat původní stránku (např. /admin) pokud byla předána jako ?next=
+  const next = searchParams.get("next") ?? "/";
+  const safePath = next.startsWith("/") ? next : "/";
+
+  return NextResponse.redirect(`${safeOrigin}${safePath}`);
 }

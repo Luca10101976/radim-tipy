@@ -317,7 +317,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         options: {
           emailRedirectTo:
             typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback`
+              ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
               : undefined,
         },
       });
