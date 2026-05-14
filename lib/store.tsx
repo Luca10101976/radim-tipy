@@ -164,6 +164,30 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     };
   }, [ADMIN_EMAIL, loadTips, loadVotes, loadReports, loadPendingTips]);
 
+  // ── Admin notifikace: poll každých 60s + při návratu na tab ──────────────
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const refresh = () => {
+      loadReports().catch(() => {});
+      loadPendingTips().catch(() => {});
+    };
+
+    // Periodicky každých 60s
+    const interval = setInterval(refresh, 60_000);
+
+    // Když se vrátím na tab — refresh okamžitě
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isAdmin, loadReports, loadPendingTips]);
+
   // ── handleVote ────────────────────────────────────────────────────────────
   const handleVote = useCallback(
     async (tipId: string, type: VoteType) => {
