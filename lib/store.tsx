@@ -34,11 +34,13 @@ function mapTip(row: Record<string, unknown>): Tip {
     votes_down: (row.votes_down as number) ?? 0,
     createdAt: (row.created_at as string)?.split("T")[0] ?? "",
     parent_id: (row.parent_id as string) ?? null,
+    pending: (row.pending as boolean) ?? false,
   };
 }
 
 interface TipsContextValue {
   tips: Tip[];
+  pendingTips: Tip[];
   votedTips: Record<string, VoteType>;
   user: User | null;
   isAdmin: boolean;
@@ -54,6 +56,7 @@ interface TipsContextValue {
   getTip: (id: string) => Tip | undefined;
   reportTip: (tipId: string, reason: string) => Promise<void>;
   deleteTip: (tipId: string) => Promise<void>;
+  approveTip: (tipId: string) => Promise<void>;
   dismissReport: (tipId: string) => Promise<void>;
   signIn: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
@@ -63,6 +66,7 @@ const TipsContext = createContext<TipsContextValue | null>(null);
 
 export function TipsProvider({ children }: { children: React.ReactNode }) {
   const [tips, setTips] = useState<Tip[]>([]);
+  const [pendingTips, setPendingTips] = useState<Tip[]>([]);
   const [votedTips, setVotedTips] = useState<Record<string, VoteType>>({});
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,14 +76,25 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "").trim();
   const isAdmin = !!user && !!ADMIN_EMAIL && (user.email ?? "").trim() === ADMIN_EMAIL;
 
-  // ── load tips ────────────────────────────────────────────────────────────
+  // ── load tips (schválené, viditelné) ─────────────────────────────────────
   const loadTips = useCallback(async () => {
     const { data } = await supabase
       .from("tips")
       .select("*")
       .eq("hidden", false)
+      .eq("pending", false)
       .order("created_at", { ascending: false });
     if (data) setTips(data.map((r) => mapTip(r as Record<string, unknown>)));
+  }, []);
+
+  // ── load pending tips (admin only) ───────────────────────────────────────
+  const loadPendingTips = useCallback(async () => {
+    const { data } = await supabase
+      .from("tips")
+      .select("*")
+      .eq("pending", true)
+      .order("created_at", { ascending: false });
+    if (data) setPendingTips(data.map((r) => mapTip(r as Record<string, unknown>)));
   }, []);
 
   // ── load votes for user ──────────────────────────────────────────────────
@@ -120,7 +135,6 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     async function init() {
-      // Safety timeout — never hang on loading forever
       const safetyTimer = setTimeout(() => {
         if (mounted) setIsLoading(false);
       }, 6000);
@@ -136,6 +150,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           const adminEmail = ADMIN_EMAIL;
           if (currentUser.email === adminEmail) {
             await loadReports();
+            await loadPendingTips();
           }
         }
       } catch (e) {
@@ -157,10 +172,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           const adminEmail = ADMIN_EMAIL;
           if (newUser.email === adminEmail) {
             await loadReports();
+            await loadPendingTips();
           }
         } else {
           setVotedTips({});
           setReports([]);
+          setPendingTips([]);
         }
       }
     );
@@ -169,7 +186,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [loadTips, loadVotes, loadReports]);
+  }, [loadTips, loadVotes, loadReports, loadPendingTips]);
 
   // ── handleVote ────────────────────────────────────────────────────────────
   const handleVote = useCallback(
@@ -180,7 +197,6 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
       const isToggleOff = current === type;
 
       if (isToggleOff) {
-        // delete vote
         await supabase
           .from("votes")
           .delete()
@@ -191,7 +207,6 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         delete nextVoted[tipId];
         setVotedTips(nextVoted);
       } else {
-        // upsert vote
         await supabase.from("votes").upsert(
           { tip_id: tipId, user_id: user.id, vote_type: type },
           { onConflict: "tip_id,user_id" }
@@ -200,7 +215,6 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         setVotedTips({ ...votedTips, [tipId]: type });
       }
 
-      // Recalculate votes_up / votes_down for this tip from DB
       const { data: votesData } = await supabase
         .from("votes")
         .select("vote_type")
@@ -208,9 +222,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
 
       if (votesData) {
         const votes_up = votesData.filter((v) => v.vote_type === "up").length;
-        const votes_down = votesData.filter(
-          (v) => v.vote_type === "down"
-        ).length;
+        const votes_down = votesData.filter((v) => v.vote_type === "down").length;
 
         await supabase
           .from("tips")
@@ -218,9 +230,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           .eq("id", tipId);
 
         setTips((prev) =>
-          prev.map((t) =>
-            t.id === tipId ? { ...t, votes_up, votes_down } : t
-          )
+          prev.map((t) => t.id === tipId ? { ...t, votes_up, votes_down } : t)
         );
       }
     },
@@ -234,7 +244,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     ): Promise<"ok" | "auth_required"> => {
       if (!user) return "auth_required";
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("tips")
         .insert({
           title: tip.title,
@@ -248,15 +258,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
           votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
           user_id: user.id,
           hidden: false,
+          pending: true, // čeká na schválení adminem
           parent_id: tip.parent_id ?? null,
-        })
-        .select()
-        .single();
+        });
 
-      if (error || !data) return "auth_required";
-
-      const newTip = mapTip(data as Record<string, unknown>);
-      setTips((prev) => [newTip, ...prev]);
+      if (error) return "auth_required";
+      // Tip nejde do lokálního stavu — je pending, admin ho schválí
       return "ok";
     },
     [user]
@@ -278,8 +285,6 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         { onConflict: "tip_id,user_id" }
       );
 
-      // Tip zůstane viditelný — skrýt může jen admin přes admin panel.
-      // Lokálně si pamatujeme nahlášené tipy pro vizuální feedback.
       setLocalReportedIds((prev) => new Set([...prev, tipId]));
     },
     [user]
@@ -288,21 +293,34 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   // ── deleteTip ─────────────────────────────────────────────────────────────
   const deleteTip = useCallback(
     async (tipId: string) => {
-      if (!isAdmin) return; // guard: only admin
+      if (!isAdmin) return;
       await supabase.from("tips").delete().eq("id", tipId);
       setTips((prev) => prev.filter((t) => t.id !== tipId));
+      setPendingTips((prev) => prev.filter((t) => t.id !== tipId));
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
     [isAdmin]
   );
 
+  // ── approveTip ────────────────────────────────────────────────────────────
+  const approveTip = useCallback(
+    async (tipId: string) => {
+      if (!isAdmin) return;
+      await supabase.from("tips").update({ pending: false }).eq("id", tipId);
+      const tip = pendingTips.find((t) => t.id === tipId);
+      if (tip) {
+        setTips((prev) => [{ ...tip, pending: false }, ...prev]);
+        setPendingTips((prev) => prev.filter((t) => t.id !== tipId));
+      }
+    },
+    [isAdmin, pendingTips]
+  );
+
   // ── dismissReport ─────────────────────────────────────────────────────────
   const dismissReport = useCallback(
     async (tipId: string) => {
-      if (!isAdmin) return; // guard: only admin
-      // delete all reports for this tip
+      if (!isAdmin) return;
       await supabase.from("reports").delete().eq("tip_id", tipId);
-      // unhide the tip
       await supabase.from("tips").update({ hidden: false }).eq("id", tipId);
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
@@ -332,6 +350,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setVotedTips({});
     setReports([]);
+    setPendingTips([]);
     if (typeof window !== "undefined") window.location.reload();
   }, []);
 
@@ -339,6 +358,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     <TipsContext.Provider
       value={{
         tips,
+        pendingTips,
         votedTips,
         user,
         isAdmin,
@@ -351,6 +371,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         getTip,
         reportTip,
         deleteTip,
+        approveTip,
         dismissReport,
         signIn,
         signOut,

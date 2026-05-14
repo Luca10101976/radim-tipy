@@ -5,7 +5,7 @@ import { useTips } from "@/lib/store";
 import { useState } from "react";
 
 export default function AdminClient() {
-  const { isAdmin, reports, tips, deleteTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
+  const { isAdmin, reports, tips, pendingTips, deleteTip, approveTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -120,12 +120,10 @@ export default function AdminClient() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Admin</h1>
-          <p className="text-sm text-gray-400">
-            Nahlášené tipy ({reports.length})
-          </p>
+          <p className="text-sm text-gray-400">{user?.email}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -138,65 +136,127 @@ export default function AdminClient() {
         </div>
       </div>
 
-      {reportsWithTips.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">
-          <p className="text-4xl mb-3">✅</p>
-          <p className="text-sm">Žádná nahlášení.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {reportsWithTips.map(({ report, tip }) => (
-            <div
-              key={report.tipId}
-              className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm"
-            >
-              {tip ? (
-                <>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        {tip.category}
-                      </span>
-                      <h2 className="font-semibold text-gray-900 mt-1">{tip.title}</h2>
-                    </div>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
-                      {new Date(report.createdAt).toLocaleDateString("cs")}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-medium">Problém:</span> {tip.problem}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-3">
-                    <span className="font-medium">Řešení:</span> {tip.solution}
-                  </p>
-                  <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-700 mb-4">
-                    <span className="font-medium">Důvod nahlášení:</span> {report.reason}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-400 mb-4">
-                  Tip ID {report.tipId} – již byl smazán nebo nenalezen.
-                </p>
-              )}
+      {/* ── ČEKÁ NA SCHVÁLENÍ ── */}
+      <section className="mb-10">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          Čeká na schválení
+          {pendingTips.length > 0 && (
+            <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">
+              {pendingTips.length}
+            </span>
+          )}
+        </h2>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => deleteTip(report.tipId)}
-                  className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl transition-colors"
-                >
-                  Smazat tip
-                </button>
-                <button
-                  onClick={() => dismissReport(report.tipId)}
-                  className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors"
-                >
-                  Ignorovat
-                </button>
+        {pendingTips.length === 0 ? (
+          <p className="text-sm text-gray-400">Žádné nové tipy.</p>
+        ) : (
+          <div className="space-y-4">
+            {pendingTips.map((tip) => (
+              <div key={tip.id} className="bg-white border border-amber-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      {tip.category}
+                    </span>
+                    <h3 className="font-semibold text-gray-900 mt-1">{tip.title}</h3>
+                  </div>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{tip.createdAt}</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">
+                  <span className="font-medium">Problém:</span> {tip.problem}
+                </p>
+                <p className="text-sm text-gray-600 mb-3">
+                  <span className="font-medium">Řešení:</span> {tip.solution}
+                </p>
+                {tip.warning && (
+                  <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3">
+                    ⚠️ {tip.warning}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => approveTip(tip.id)}
+                    className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-xl transition-colors"
+                  >
+                    ✓ Schválit
+                  </button>
+                  <button
+                    onClick={() => deleteTip(tip.id)}
+                    className="flex-1 py-2 bg-gray-100 hover:bg-red-100 hover:text-red-600 text-gray-700 text-sm font-medium rounded-xl transition-colors"
+                  >
+                    Smazat
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── NAHLÁŠENÉ TIPY ── */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          Nahlášené tipy
+          {reports.length > 0 && (
+            <span className="bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full">
+              {reports.length}
+            </span>
+          )}
+        </h2>
+
+        {reportsWithTips.length === 0 ? (
+          <p className="text-sm text-gray-400">Žádná nahlášení.</p>
+        ) : (
+          <div className="space-y-4">
+            {reportsWithTips.map(({ report, tip }) => (
+              <div key={report.tipId} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                {tip ? (
+                  <>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {tip.category}
+                        </span>
+                        <h3 className="font-semibold text-gray-900 mt-1">{tip.title}</h3>
+                      </div>
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {new Date(report.createdAt).toLocaleDateString("cs")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-medium">Problém:</span> {tip.problem}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      <span className="font-medium">Řešení:</span> {tip.solution}
+                    </p>
+                    <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-700 mb-4">
+                      <span className="font-medium">Důvod nahlášení:</span> {report.reason}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 mb-4">
+                    Tip ID {report.tipId} – již byl smazán nebo nenalezen.
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => deleteTip(report.tipId)}
+                    className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl transition-colors"
+                  >
+                    Smazat tip
+                  </button>
+                  <button
+                    onClick={() => dismissReport(report.tipId)}
+                    className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors"
+                  >
+                    Ignorovat
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

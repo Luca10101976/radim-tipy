@@ -97,8 +97,8 @@ export default function AddTipForm() {
     return (
       <div className="text-center py-20">
         <div className="text-5xl mb-4">🎉</div>
-        <h2 className="text-xl font-semibold text-gray-800">Tip přidán!</h2>
-        <p className="text-gray-500 mt-1">Přesměrovávám na hlavní stránku…</p>
+        <h2 className="text-xl font-semibold text-gray-800">Tip odeslán!</h2>
+        <p className="text-gray-500 mt-1">Zkontrolujeme ho a brzy se objeví na webu.</p>
       </div>
     );
   }
