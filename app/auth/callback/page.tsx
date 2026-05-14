@@ -20,17 +20,26 @@ export default function AuthCallbackPage() {
     async function handleAuth() {
       try {
         const params = new URLSearchParams(window.location.search);
-        const hash = window.location.hash;
+        const hashStr = window.location.hash.replace(/^#/, "");
+        const hashParams = new URLSearchParams(hashStr);
 
-        // Debug info pro případ, že nic nefunguje
+        // Tokeny mohou být v hashe (implicit flow) NEBO v query (PKCE/OTP)
         const code = params.get("code");
-        const tokenHash = params.get("token_hash");
-        const type = params.get("type");
-        const errParam = params.get("error_description") ?? params.get("error");
+        const tokenHash = params.get("token_hash") ?? hashParams.get("token_hash");
+        const type = params.get("type") ?? hashParams.get("type");
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const errParam =
+          params.get("error_description") ??
+          params.get("error") ??
+          hashParams.get("error_description") ??
+          hashParams.get("error");
 
-        setDebug(`code=${!!code}, token_hash=${!!tokenHash}, type=${type ?? "-"}, hash=${!!hash}`);
+        setDebug(
+          `code=${!!code}, token_hash=${!!tokenHash}, type=${type ?? "-"}, ` +
+          `access=${!!accessToken}, refresh=${!!refreshToken}, hash="${hashStr.slice(0, 60)}"`
+        );
 
-        // Pokud Supabase vrátil chybu (např. expirovaný odkaz)
         if (errParam) {
           setError(decodeURIComponent(errParam));
           return;
@@ -41,7 +50,7 @@ export default function AuthCallbackPage() {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         }
-        // 2. Token hash: ?token_hash=...&type=...
+        // 2. Token hash flow: ?token_hash=...&type=...
         else if (tokenHash && type) {
           const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
@@ -50,7 +59,14 @@ export default function AuthCallbackPage() {
           });
           if (error) throw error;
         }
-        // 3. Implicit: #access_token=... — detectSessionInUrl handle to automaticky
+        // 3. Implicit flow: tokeny v hashe — nastav session manualne
+        else if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        }
 
         // Počkat až se session uloží
         for (let i = 0; i < 15; i++) {
