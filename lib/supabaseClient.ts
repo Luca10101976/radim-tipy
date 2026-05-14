@@ -13,4 +13,14 @@ if (!supabaseUrl || !supabaseKey) {
   });
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    // Vypnout navigator lock - zpusobuje "lock was released because another request stole it"
+    // pri konfliktu mezi getSession() a onAuthStateChange.
+    // Místo toho používáme klasický mutex přes Promise (Supabase default fallback).
+    lock: (_name, _acquireTimeout, fn) => fn(),
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
