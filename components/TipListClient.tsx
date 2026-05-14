@@ -30,10 +30,16 @@ interface Props {
 
 export default function TipListClient({ initialTips }: Props) {
   // Tipy přijdou pre-renderované ze serveru → žádný loading state, žádné blikání
-  // Kontext potřebujeme jen pro hlasování, admin info, reported set
-  const { tips: clientTips, reportedTipIds, isAdmin } = useTips();
-  // Preferuj klientské tipy (po hlasování), fallback na server tipy
-  const tips = clientTips.length > 0 ? clientTips : initialTips;
+  const { tips, reportedTipIds, isAdmin, seedTips } = useTips();
+
+  // Naplnit klientský store server daty (jen 1x, abychom mohli optimisticky
+  // updatovat při hlasování). Pokud už store data má, seedTips nic neudělá.
+  useEffect(() => {
+    seedTips(initialTips);
+  }, [initialTips, seedTips]);
+
+  // Dokud klient nehydratoval, použij server data
+  const tipsToShow = tips.length > 0 ? tips : initialTips;
 
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
@@ -67,7 +73,7 @@ export default function TipListClient({ initialTips }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return tips
+    return tipsToShow
       .map(computeStats)
       .filter((t) => {
         // hide reported tips from public (admin sees everything)
@@ -95,7 +101,7 @@ export default function TipListClient({ initialTips }: Props) {
         if (sort === "votes") return (b.votes_up + b.votes_down) - (a.votes_up + a.votes_down);
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
-  }, [tips, search, activeCategory, activeTags, sort]);
+  }, [tipsToShow, search, activeCategory, activeTags, sort, isAdmin, reportedTipIds]);
 
   const isFiltering = search || activeCategory || activeTags.length > 0;
 

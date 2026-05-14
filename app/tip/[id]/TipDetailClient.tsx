@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTips } from "@/lib/store";
 import { computeStats, Tip } from "@/lib/types";
 import VoteButtons from "@/components/VoteButtons";
@@ -14,7 +15,14 @@ interface Props {
 }
 
 export default function TipDetailClient({ initialTip, initialVariants }: Props) {
-  const { getTip, reportedTipIds, isAdmin } = useTips();
+  const { getTip, reportedTipIds, isAdmin, seedTips } = useTips();
+
+  // Naplnit store server-side daty (jen 1x) — aby fungovaly optimistic
+  // updates při hlasování.
+  useEffect(() => {
+    seedTips([initialTip, ...initialVariants]);
+  }, [initialTip, initialVariants, seedTips]);
+
   // Preferuj klientskou verzi (po hlasování), fallback na server data
   const raw = getTip(initialTip.id) ?? initialTip;
 

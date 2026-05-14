@@ -43,6 +43,8 @@ interface TipsContextValue {
   dismissReport: (tipId: string) => Promise<void>;
   refreshAdmin: () => Promise<void>;
   reloadTips: () => Promise<void>;
+  /** Inicializovat tipy ze server-side dat (volá se 1x z page-level komponenty) */
+  seedTips: (tips: Tip[]) => void;
   signIn: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
 }
@@ -311,6 +313,13 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     [isAdmin]
   );
 
+  // ── seedTips ──────────────────────────────────────────────────────────────
+  // Inicializuje klientský store ze server-side dat. Volá se jen pokud
+  // je store prázdný (aby nepřepsal optimistic updates).
+  const seedTips = useCallback((newTips: Tip[]) => {
+    setTips((prev) => (prev.length === 0 ? newTips : prev));
+  }, []);
+
   // ── refreshAdmin ──────────────────────────────────────────────────────────
   const refreshAdmin = useCallback(async () => {
     if (!isAdmin) return;
@@ -366,6 +375,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         dismissReport,
         refreshAdmin,
         reloadTips: loadTips,
+        seedTips,
         signIn,
         signOut,
       }}
