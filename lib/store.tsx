@@ -145,22 +145,8 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
         const currentUser = session?.user ?? null;
         if (process.env.NODE_ENV === "development") console.log("[auth] user:", currentUser?.email ?? "none");
-
-        // Načíst tipy ještě před změnou stavu aby nevznikl prázdný flash
-        const { data: tipsData } = await supabase
-          .from("tips")
-          .select("*")
-          .eq("hidden", false)
-          .eq("pending", false)
-          .order("created_at", { ascending: false });
-
-        if (mounted) {
-          // Nastavit tipy a isLoading=false ve stejném renderu → bez blikání
-          setUser(currentUser);
-          setTips(tipsData ? tipsData.map((r) => mapTip(r as Record<string, unknown>)) : []);
-          setIsLoading(false);
-        }
-
+        if (mounted) setUser(currentUser);
+        await loadTips();
         if (currentUser) {
           await loadVotes(currentUser.id);
           const adminEmail = ADMIN_EMAIL;
@@ -171,9 +157,9 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (e) {
         console.error("[init error]", e);
-        if (mounted) setIsLoading(false);
       } finally {
         clearTimeout(safetyTimer);
+        if (mounted) setIsLoading(false);
       }
     }
 
