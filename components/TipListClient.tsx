@@ -23,8 +23,24 @@ const RADIM_HINTS = [
 
 const RADIM_EMPTY = "Tohle by se hodilo vědět.";
 
+function TipSkeleton() {
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 animate-pulse">
+      <div className="h-3 w-24 bg-gray-100 rounded-full mb-3" />
+      <div className="h-4 w-3/4 bg-gray-200 rounded-full mb-2" />
+      <div className="h-3 w-full bg-gray-100 rounded-full mb-1" />
+      <div className="h-3 w-2/3 bg-gray-100 rounded-full mb-4" />
+      <div className="h-2 w-full bg-gray-100 rounded-full mt-4 mb-3" />
+      <div className="flex gap-2 pt-3 border-t border-gray-50">
+        <div className="h-7 w-16 bg-gray-100 rounded-lg" />
+        <div className="h-7 w-16 bg-gray-100 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
 export default function TipListClient() {
-  const { tips, reportedTipIds, isAdmin } = useTips();
+  const { tips, reportedTipIds, isAdmin, isLoading } = useTips();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -184,8 +200,15 @@ export default function TipListClient() {
         </div>
       </div>
 
+      {/* ── SKELETON při načítání ── */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <TipSkeleton key={i} />)}
+        </div>
+      )}
+
       {/* ── LIST or EMPTY STATE ── */}
-      {filtered.length === 0 ? (
+      {!isLoading && filtered.length === 0 ? (
         <div className="text-center py-20">
           <div className="flex justify-center mb-4">
             <RadimAvatar size={72} className="opacity-70" />
@@ -202,7 +225,7 @@ export default function TipListClient() {
             Přidat tip
           </Link>
         </div>
-      ) : (
+      ) : !isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((tip) => (
             <TipCard key={tip.id} tip={tip} />
