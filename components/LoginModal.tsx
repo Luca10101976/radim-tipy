@@ -84,8 +84,12 @@ export default function LoginModal({ open, onClose }: Props) {
               />
               {error && (
                 <p className="text-red-500 text-xs">
-                  {error.includes("rate limit")
+                  {error.startsWith("network:")
+                    ? "Síťová chyba. Zkontroluj připojení a zkus znovu."
+                    : error.includes("rate limit") || error.includes("Email rate")
                     ? "Příliš mnoho pokusů. Zkus to za hodinu."
+                    : error.includes("invalid")
+                    ? "Email vypadá špatně. Zkontroluj ho."
                     : "Něco se nepovedlo. Zkus to znovu."}
                 </p>
               )}

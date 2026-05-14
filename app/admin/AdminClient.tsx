@@ -63,7 +63,9 @@ export default function AdminClient() {
             />
             {loginError && (
               <p className="text-red-500 text-xs">
-                {loginError.includes("rate limit")
+                {loginError.startsWith("network:")
+                  ? "Síťová chyba. Zkontroluj připojení a zkus znovu."
+                  : loginError.includes("rate limit") || loginError.includes("Email rate")
                   ? "Příliš mnoho pokusů. Zkus to za hodinu."
                   : "Něco se nepovedlo. Zkus to znovu."}
               </p>

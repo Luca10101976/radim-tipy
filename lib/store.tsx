@@ -329,17 +329,30 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   // ── signIn ────────────────────────────────────────────────────────────────
   const signIn = useCallback(
     async (email: string): Promise<string> => {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
-              : undefined,
-        },
-      });
-      if (error) console.error("[signIn error]", error.message, error.status, error.code);
-      return error ? `error:${error.message}` : "ok";
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            // Redirect bez next parametru — jednodušší a spolehlivější.
+            // Po přihlášení uživatel skončí na hlavní stránce, admin
+            // si může otevřít /admin samostatně.
+            emailRedirectTo:
+              typeof window !== "undefined"
+                ? `${window.location.origin}/auth/callback`
+                : undefined,
+          },
+        });
+        if (error) {
+          console.error("[signIn error]", error.message, error.status, error.code);
+          return `error:${error.message}`;
+        }
+        return "ok";
+      } catch (e) {
+        // Network errory, CORS, timeout atd.
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        console.error("[signIn caught]", e);
+        return `error:network:${msg}`;
+      }
     },
     []
   );
