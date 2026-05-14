@@ -84,10 +84,15 @@ export default function TipCard({ tip }: Props) {
         )}
         {/* Clickable content area */}
         <Link href={`/tip/${tip.id}`} className="block group mb-3">
-          <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
             <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
               {tip.category}
             </span>
+            {tip.parent_id && (
+              <span className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">
+                ↳ alternativa
+              </span>
+            )}
           </div>
           <h3 className="font-semibold text-gray-900 mb-1 text-sm leading-tight group-hover:text-indigo-700 transition-colors">
             {tip.title}
