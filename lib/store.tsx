@@ -167,26 +167,32 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   // ── handleVote ────────────────────────────────────────────────────────────
   const handleVote = useCallback(
     async (tipId: string, type: VoteType) => {
-      if (!user) return;
+      console.log("[handleVote] start", { tipId, type, user: user?.email });
+      if (!user) {
+        console.warn("[handleVote] no user - returning");
+        return;
+      }
 
       const current = votedTips[tipId] ?? null;
       const isToggleOff = current === type;
 
       if (isToggleOff) {
-        await supabase
+        const { error } = await supabase
           .from("votes")
           .delete()
           .eq("tip_id", tipId)
           .eq("user_id", user.id);
+        if (error) console.error("[handleVote] delete error", error);
 
         const nextVoted = { ...votedTips };
         delete nextVoted[tipId];
         setVotedTips(nextVoted);
       } else {
-        await supabase.from("votes").upsert(
+        const { error } = await supabase.from("votes").upsert(
           { tip_id: tipId, user_id: user.id, vote_type: type },
           { onConflict: "tip_id,user_id" }
         );
+        if (error) console.error("[handleVote] upsert error", error);
 
         setVotedTips({ ...votedTips, [tipId]: type });
       }
@@ -200,14 +206,25 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         const votes_up = votesData.filter((v) => v.vote_type === "up").length;
         const votes_down = votesData.filter((v) => v.vote_type === "down").length;
 
-        await supabase
+        const { error: updateErr } = await supabase
           .from("tips")
           .update({ votes_up, votes_down })
           .eq("id", tipId);
 
-        setTips((prev) =>
-          prev.map((t) => t.id === tipId ? { ...t, votes_up, votes_down } : t)
-        );
+        if (updateErr) console.error("[handleVote update]", updateErr);
+
+        // Optimistic update s ochranou: pokud tip není ve store, načti ho z DB
+        setTips((prev) => {
+          const found = prev.find((t) => t.id === tipId);
+          if (found) {
+            return prev.map((t) =>
+              t.id === tipId ? { ...t, votes_up, votes_down } : t
+            );
+          }
+          // Tip není ve store — necháme to být, příště se načte ze serveru
+          console.warn("[handleVote] tip not in store, skip optimistic", tipId);
+          return prev;
+        });
       }
     },
     [user, votedTips]
