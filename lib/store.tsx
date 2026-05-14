@@ -59,6 +59,7 @@ interface TipsContextValue {
   deleteAllTips: () => Promise<void>;
   approveTip: (tipId: string) => Promise<void>;
   dismissReport: (tipId: string) => Promise<void>;
+  refreshAdmin: () => Promise<void>;
   signIn: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
 }
@@ -296,11 +297,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     async (tipId: string) => {
       if (!isAdmin) return;
       await supabase.from("tips").delete().eq("id", tipId);
-      setTips((prev) => prev.filter((t) => t.id !== tipId));
+      // Načíst znovu z DB aby stav odpovídal realitě
+      await loadTips();
       setPendingTips((prev) => prev.filter((t) => t.id !== tipId));
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
-    [isAdmin]
+    [isAdmin, loadTips]
   );
 
   // ── deleteAllTips ─────────────────────────────────────────────────────────
@@ -336,6 +338,12 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     },
     [isAdmin]
   );
+
+  // ── refreshAdmin ──────────────────────────────────────────────────────────
+  const refreshAdmin = useCallback(async () => {
+    if (!isAdmin) return;
+    await Promise.all([loadTips(), loadReports(), loadPendingTips()]);
+  }, [isAdmin, loadTips, loadReports, loadPendingTips]);
 
   // ── signIn ────────────────────────────────────────────────────────────────
   const signIn = useCallback(
@@ -384,6 +392,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         deleteAllTips,
         approveTip,
         dismissReport,
+        refreshAdmin,
         signIn,
         signOut,
       }}

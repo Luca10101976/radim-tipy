@@ -5,7 +5,8 @@ import { useTips } from "@/lib/store";
 import { useState } from "react";
 
 export default function AdminClient() {
-  const { isAdmin, reports, tips, pendingTips, deleteTip, deleteAllTips, approveTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
+  const { isAdmin, reports, tips, pendingTips, deleteTip, deleteAllTips, approveTip, dismissReport, refreshAdmin, isLoading, user, signIn, signOut } = useTips();
+  const [refreshing, setRefreshing] = useState(false);
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -127,6 +128,13 @@ export default function AdminClient() {
           <p className="text-sm text-gray-400">{user?.email}</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={async () => { setRefreshing(true); await refreshAdmin(); setRefreshing(false); }}
+            disabled={refreshing}
+            className="text-xs text-gray-500 hover:text-teal-600 border border-gray-200 hover:border-teal-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {refreshing ? "…" : "↺ Obnovit"}
+          </button>
           <button
             onClick={() => signOut()}
             className="text-xs text-gray-500 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
