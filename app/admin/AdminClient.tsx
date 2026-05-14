@@ -5,11 +5,12 @@ import { useTips } from "@/lib/store";
 import { useState } from "react";
 
 export default function AdminClient() {
-  const { isAdmin, reports, tips, pendingTips, deleteTip, approveTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
+  const { isAdmin, reports, tips, pendingTips, deleteTip, deleteAllTips, approveTip, dismissReport, isLoading, user, signIn, signOut } = useTips();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   if (isLoading) {
     return (
@@ -134,6 +135,41 @@ export default function AdminClient() {
           </button>
           <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Zpět</Link>
         </div>
+      </div>
+
+      {/* Smazat vše */}
+      <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-2xl">
+        {!confirmDeleteAll ? (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-red-700">Smazat všechny tipy z webu</p>
+            <button
+              onClick={() => setConfirmDeleteAll(true)}
+              className="text-xs text-red-600 border border-red-300 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Smazat vše
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-semibold text-red-700 mb-3">
+              Opravdu smazat všechny tipy? Tato akce je nevratná.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => { await deleteAllTips(); setConfirmDeleteAll(false); }}
+                className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                Ano, smazat vše
+              </button>
+              <button
+                onClick={() => setConfirmDeleteAll(false)}
+                className="flex-1 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl transition-colors"
+              >
+                Zrušit
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── ČEKÁ NA SCHVÁLENÍ ── */}

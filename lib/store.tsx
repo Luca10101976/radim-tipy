@@ -56,6 +56,7 @@ interface TipsContextValue {
   getTip: (id: string) => Tip | undefined;
   reportTip: (tipId: string, reason: string) => Promise<void>;
   deleteTip: (tipId: string) => Promise<void>;
+  deleteAllTips: () => Promise<void>;
   approveTip: (tipId: string) => Promise<void>;
   dismissReport: (tipId: string) => Promise<void>;
   signIn: (email: string) => Promise<string>;
@@ -302,6 +303,15 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     [isAdmin]
   );
 
+  // ── deleteAllTips ─────────────────────────────────────────────────────────
+  const deleteAllTips = useCallback(async () => {
+    if (!isAdmin) return;
+    await supabase.from("tips").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    setTips([]);
+    setPendingTips([]);
+    setReports([]);
+  }, [isAdmin]);
+
   // ── approveTip ────────────────────────────────────────────────────────────
   const approveTip = useCallback(
     async (tipId: string) => {
@@ -371,6 +381,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         getTip,
         reportTip,
         deleteTip,
+        deleteAllTips,
         approveTip,
         dismissReport,
         signIn,
