@@ -118,10 +118,10 @@ export default function TipListClient() {
       </section>
 
       {/* ── CATEGORIES ── */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]">
         <button
           onClick={() => selectCategory(null)}
-          className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
             !activeCategory
               ? "bg-teal-600 text-white border-teal-600"
               : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
@@ -175,7 +175,7 @@ export default function TipListClient() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-teal-400"
+            className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400 appearance-none cursor-pointer pr-7 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%239ca3af%22 stroke-width=%222%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E')] bg-no-repeat bg-[right_8px_center]"
           >
             <option value="success_rate">Nejvíc funguje</option>
             <option value="votes">Nejvíc hlasů</option>

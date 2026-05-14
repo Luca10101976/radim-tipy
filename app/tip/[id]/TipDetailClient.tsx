@@ -47,7 +47,7 @@ export default function TipDetailClient({ id }: Props) {
   const isVariant = !!raw.parent_id;
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="max-w-2xl mx-auto">
       <Link href={isVariant ? `/tip/${raw.parent_id}` : "/"} className="text-sm text-gray-400 hover:text-gray-600 inline-flex items-center gap-1 mb-6 transition-colors">
         ← {isVariant ? "Zpět na původní tip" : "Zpět"}
       </Link>

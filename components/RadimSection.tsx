@@ -22,10 +22,8 @@ export default function RadimSection({ tip }: Props) {
   let color: string;
   let emoji: string;
 
-  if (total === 0) {
-    message = "Zatím nikdo nehlasoval. Buď první!";
-    color = "bg-gray-50 border-gray-200 text-gray-600";
-    emoji = "🤔";
+  if (total < 3) {
+    return null; // příliš málo dat, Radim mlčí
   } else if (rate > 0.7) {
     message = pick(
       ["Tohle většinou zabere.", "Tohle lidi chválí.", "Tady bych se toho nebál."],

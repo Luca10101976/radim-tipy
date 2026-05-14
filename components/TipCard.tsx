@@ -95,7 +95,7 @@ export default function TipCard({ tip }: Props) {
           <p className="text-xs text-gray-500 mb-3 line-clamp-2">{tip.solution}</p>
 
           {/* Radim říká — jen když je jasná většina */}
-          {tip.votes_up !== tip.votes_down && (tip.votes_up + tip.votes_down) > 0 && (
+          {tip.votes_up !== tip.votes_down && (tip.votes_up + tip.votes_down) >= 3 && (
             <div className="flex items-center gap-2 mb-3">
               <Image
                 src="/radim-maskot.png"
