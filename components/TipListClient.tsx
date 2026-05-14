@@ -92,17 +92,14 @@ export default function TipListClient() {
     <div>
       {/* ── HERO ── */}
       <section className="mb-10">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
-          <RadimAvatar size={96} className="flex-shrink-0 drop-shadow-md" />
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug mb-2">
-              Někdo to zkusil před tebou.{" "}
-              <span className="text-teal-600">Tady zjistíš, co fungovalo – a co ne.</span>
-            </h1>
-            <p className="text-gray-400 text-sm">
-              Žádné reklamy. Jen zkušenosti lidí z domácnosti.
-            </p>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug mb-2">
+            Někdo to zkusil před tebou.{" "}
+            <span className="text-teal-600">Tady zjistíš, co fungovalo – a co ne.</span>
+          </h1>
+          <p className="text-gray-400 text-sm">
+            Žádné reklamy. Jen zkušenosti lidí z domácnosti.
+          </p>
         </div>
 
         {/* Search */}
@@ -111,16 +108,13 @@ export default function TipListClient() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder='Máš nějakou starost? (např. smrdí pračka, mastnota na digestoři)'
+            placeholder="smrdí pračka, mastnota na digestoři, vodní kámen…"
             className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-teal-400 bg-white shadow-sm transition-colors placeholder:text-gray-300"
           />
         </div>
 
-        {/* Radim search hint */}
-        <div className="flex items-center gap-2 mt-2 ml-1">
-          <RadimAvatar size={22} className="flex-shrink-0 opacity-80" />
-          <p className="text-xs text-gray-400 italic">{RADIM_HINTS[hintIndex]}</p>
-        </div>
+        {/* Hint */}
+        <p className="text-xs text-gray-400 italic mt-2 ml-1">{RADIM_HINTS[hintIndex]}</p>
       </section>
 
       {/* ── CATEGORIES ── */}
