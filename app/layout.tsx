@@ -7,6 +7,7 @@ import { TipsProvider } from "@/lib/store";
 import AdminBadge from "@/components/AdminBadge";
 import HeaderAuth from "@/components/HeaderAuth";
 import { Analytics } from "@vercel/analytics/next";
+import CookieBanner from "@/components/CookieBanner";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -73,6 +74,7 @@ export default function RootLayout({
           <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
         </TipsProvider>
         <Analytics />
+        <CookieBanner />
       </body>
     </html>
   );
