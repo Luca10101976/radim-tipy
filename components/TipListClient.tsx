@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTips } from "@/lib/store";
 import {
@@ -40,15 +40,38 @@ function TipSkeleton() {
 }
 
 export default function TipListClient() {
-  const { tips, reportedTipIds, isAdmin, isLoading } = useTips();
+  const { tips, reportedTipIds, isAdmin, isLoading, reloadTips } = useTips();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("success_rate");
   const [hintIndex, setHintIndex] = useState(0);
+
   useEffect(() => {
     setHintIndex(Math.floor(Math.random() * RADIM_HINTS.length));
   }, []);
+
+  // Záchranný retry: pokud po načtení nejsou tipy, zkus znovu po 1s
+  const retried = useRef(false);
+  useEffect(() => {
+    if (!isLoading && tips.length === 0 && !retried.current) {
+      retried.current = true;
+      const t = setTimeout(async () => {
+        const { supabase } = await import("@/lib/supabaseClient");
+        const { data } = await supabase
+          .from("tips")
+          .select("*")
+          .eq("hidden", false)
+          .eq("pending", false)
+          .order("created_at", { ascending: false });
+        if (data && data.length > 0) {
+          console.warn("[retry] tipy nebyly načteny při init, retry uspěl");
+          await reloadTips();
+        }
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [isLoading, tips.length, reloadTips]);
 
   function selectCategory(cat: Category | null) {
     setActiveCategory(cat);

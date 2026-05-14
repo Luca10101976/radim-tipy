@@ -60,6 +60,7 @@ interface TipsContextValue {
   approveTip: (tipId: string) => Promise<void>;
   dismissReport: (tipId: string) => Promise<void>;
   refreshAdmin: () => Promise<void>;
+  reloadTips: () => Promise<void>;
   signIn: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
 }
@@ -80,12 +81,13 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
 
   // ── load tips (schválené, viditelné) ─────────────────────────────────────
   const loadTips = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("tips")
       .select("*")
       .eq("hidden", false)
       .eq("pending", false)
       .order("created_at", { ascending: false });
+    if (error) console.error("[loadTips error]", error);
     if (data) setTips(data.map((r) => mapTip(r as Record<string, unknown>)));
   }, []);
 
@@ -393,6 +395,7 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
         approveTip,
         dismissReport,
         refreshAdmin,
+        reloadTips: loadTips,
         signIn,
         signOut,
       }}
