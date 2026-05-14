@@ -94,8 +94,8 @@ export default function TipListClient() {
       <section className="mb-10">
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug mb-2">
-            Někdo to zkusil před tebou.{" "}
-            <span className="text-teal-600">Tady zjistíš, co fungovalo a co ne.</span>
+            Máš doma problém?{" "}
+            <span className="text-teal-600">Někdo ho už řešil.</span>
           </h1>
           <p className="text-gray-400 text-sm">
             Tipy ověřené lidmi. Víš předem, co funguje.
