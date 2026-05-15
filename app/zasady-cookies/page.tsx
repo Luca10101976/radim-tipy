@@ -85,8 +85,8 @@ export default function ZasadyCookiesPage() {
           <h2 className="text-base font-semibold text-gray-800 mb-2">Kontakt</h2>
           <p>
             Máte otázky? Napište nám na{" "}
-            <a href="mailto:ahoj@radim.pro" className="text-teal-600 hover:underline">
-              ahoj@radim.pro
+            <a href="mailto:rady.radim@gmail.com" className="text-teal-600 hover:underline">
+              rady.radim@gmail.com
             </a>
           </p>
         </section>
