@@ -256,4 +256,44 @@ V Supabase Dashboard → Authentication → URL Configuration:
 V Vercel Dashboard → Settings → Environment Variables přidej:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_ADMIN_EMAIL`
+- `NEXT_PUBLIC_ADMIN_EMAIL` (pouze pro UI — není bezpečnostní vrstva)
+- `ADMIN_USER_ID` (server-only UUID admina, musí odpovídat SQL politikám)
+
+**Nikdy necommituj** `.env.local`, `.env.vercel` ani jiné soubory s tokeny.
+Pokud unikl `VERCEL_OIDC_TOKEN`, okamžitě ho rotuj ve Vercel Dashboard.
+
+## 7. Bezpečnostní hardening (povinné pro produkci)
+
+### 7.1 Spusť SQL migraci
+
+V Supabase SQL editoru spusť `supabase/security-hardening.sql`.
+Před spuštěním nahraď všechny výskyty `<ADMIN_UUID>` skutečným UUID admina
+(`select id from auth.users where email = '...'`).
+
+Migrace:
+- zpřísní RLS pro insert/update tipů, hlasování a reporty
+- odstraní možnost měnit `votes_up`/`votes_down`/`pending`/`hidden` z klienta
+- přidá DB trigger pro přepočet hlasů z tabulky `votes`
+
+### 7.2 Serverová API vrstva
+
+Mutace jdou přes Next.js API routes (validace Zod + rate limiting + auth token):
+- `POST /api/tips` — přidání tipu
+- `POST|DELETE /api/votes` — hlasování
+- `POST /api/reports` — nahlášení
+- `POST /api/admin/tips/[id]/approve` — schválení
+- `DELETE /api/admin/tips/[id]/delete` — smazání
+- `DELETE /api/admin/tips/delete-all` — hromadné smazání
+- `POST /api/admin/reports/[tipId]/dismiss` — zrušení reportu
+
+Admin API kontroluje `ADMIN_USER_ID` na serveru, ne email ve frontendu.
+
+### 7.3 Rate limiting
+
+API routes mají základní in-memory rate limiting per uživatel/IP:
+- tipy: 5/hodinu
+- hlasy: 60/hodinu
+- reporty: 10/hodinu
+
+Pro produkci s více instancemi zvaž Redis/Upstash rate limiter.
+
