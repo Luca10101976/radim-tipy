@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
+import { apiJson } from "./apiClient";
 import { Tip, mapTip } from "./types";
 
 export type VoteType = "up" | "down";
@@ -191,65 +192,35 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   // ── handleVote ────────────────────────────────────────────────────────────
   const handleVote = useCallback(
     async (tipId: string, type: VoteType) => {
-      console.log("[handleVote] start", { tipId, type, user: user?.email });
-      if (!user) {
-        console.warn("[handleVote] no user - returning");
-        return;
-      }
+      if (!user) return;
 
       const current = votedTips[tipId] ?? null;
       const isToggleOff = current === type;
 
-      if (isToggleOff) {
-        const { error } = await supabase
-          .from("votes")
-          .delete()
-          .eq("tip_id", tipId)
-          .eq("user_id", user.id);
-        if (error) console.error("[handleVote] delete error", error);
+      const result = isToggleOff
+        ? await apiJson<{ votes_up: number; votes_down: number }>("/api/votes", {
+            method: "DELETE",
+            body: JSON.stringify({ tipId }),
+          })
+        : await apiJson<{ votes_up: number; votes_down: number }>("/api/votes", {
+            method: "POST",
+            body: JSON.stringify({ tipId, voteType: type }),
+          });
 
-        const nextVoted = { ...votedTips };
-        delete nextVoted[tipId];
-        setVotedTips(nextVoted);
-      } else {
-        const { error } = await supabase.from("votes").upsert(
-          { tip_id: tipId, user_id: user.id, vote_type: type },
-          { onConflict: "tip_id,user_id" }
-        );
-        if (error) console.error("[handleVote] upsert error", error);
-
-        setVotedTips({ ...votedTips, [tipId]: type });
+      if (!result.ok) {
+        console.error("[handleVote]", result.error);
+        return;
       }
 
-      const { data: votesData } = await supabase
-        .from("votes")
-        .select("vote_type")
-        .eq("tip_id", tipId);
+      const nextVoted = { ...votedTips };
+      if (isToggleOff) delete nextVoted[tipId];
+      else nextVoted[tipId] = type;
+      setVotedTips(nextVoted);
 
-      if (votesData) {
-        const votes_up = votesData.filter((v) => v.vote_type === "up").length;
-        const votes_down = votesData.filter((v) => v.vote_type === "down").length;
-
-        const { error: updateErr } = await supabase
-          .from("tips")
-          .update({ votes_up, votes_down })
-          .eq("id", tipId);
-
-        if (updateErr) console.error("[handleVote update]", updateErr);
-
-        // Optimistic update s ochranou: pokud tip není ve store, načti ho z DB
-        setTips((prev) => {
-          const found = prev.find((t) => t.id === tipId);
-          if (found) {
-            return prev.map((t) =>
-              t.id === tipId ? { ...t, votes_up, votes_down } : t
-            );
-          }
-          // Tip není ve store — necháme to být, příště se načte ze serveru
-          console.warn("[handleVote] tip not in store, skip optimistic", tipId);
-          return prev;
-        });
-      }
+      const { votes_up, votes_down } = result.data;
+      setTips((prev) =>
+        prev.map((t) => (t.id === tipId ? { ...t, votes_up, votes_down } : t))
+      );
     },
     [user, votedTips]
   );
@@ -261,26 +232,26 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     ): Promise<"ok" | "auth_required"> => {
       if (!user) return "auth_required";
 
-      const { error } = await supabase
-        .from("tips")
-        .insert({
+      const result = await apiJson<{ ok: true }>("/api/tips", {
+        method: "POST",
+        body: JSON.stringify({
           title: tip.title,
           category: tip.category,
           problem: tip.problem,
           solution: tip.solution,
-          author_result: tip.authorResult,
-          warning: tip.warning ?? null,
+          authorResult: tip.authorResult,
+          warning: tip.warning,
           tags: tip.tags,
-          votes_up: tip.authorResult === "fungovalo" ? 1 : 0,
-          votes_down: tip.authorResult === "nefungovalo" ? 1 : 0,
-          user_id: user.id,
-          hidden: false,
-          pending: true, // čeká na schválení adminem
           parent_id: tip.parent_id ?? null,
-        });
+        }),
+      });
 
-      if (error) return "auth_required";
-      // Tip nejde do lokálního stavu — je pending, admin ho schválí
+      if (!result.ok) {
+        if (result.status === 401) return "auth_required";
+        console.error("[addTip]", result.error);
+        return "auth_required";
+      }
+
       return "ok";
     },
     [user]
@@ -297,10 +268,15 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
     async (tipId: string, reason: string) => {
       if (!user) return;
 
-      await supabase.from("reports").upsert(
-        { tip_id: tipId, user_id: user.id, reason },
-        { onConflict: "tip_id,user_id" }
-      );
+      const result = await apiJson<{ ok: true }>("/api/reports", {
+        method: "POST",
+        body: JSON.stringify({ tipId, reason }),
+      });
+
+      if (!result.ok) {
+        console.error("[reportTip]", result.error);
+        return;
+      }
 
       setLocalReportedIds((prev) => new Set([...prev, tipId]));
     },
@@ -311,8 +287,13 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const deleteTip = useCallback(
     async (tipId: string) => {
       if (!isAdmin) return;
-      await supabase.from("tips").delete().eq("id", tipId);
-      // Načíst znovu z DB aby stav odpovídal realitě
+      const result = await apiJson<{ ok: true }>(`/api/admin/tips/${tipId}/delete`, {
+        method: "DELETE",
+      });
+      if (!result.ok) {
+        console.error("[deleteTip]", result.error);
+        return;
+      }
       await loadTips();
       setPendingTips((prev) => prev.filter((t) => t.id !== tipId));
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
@@ -323,7 +304,13 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   // ── deleteAllTips ─────────────────────────────────────────────────────────
   const deleteAllTips = useCallback(async () => {
     if (!isAdmin) return;
-    await supabase.from("tips").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const result = await apiJson<{ ok: true }>("/api/admin/tips/delete-all", {
+      method: "DELETE",
+    });
+    if (!result.ok) {
+      console.error("[deleteAllTips]", result.error);
+      return;
+    }
     setTips([]);
     setPendingTips([]);
     setReports([]);
@@ -333,7 +320,13 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const approveTip = useCallback(
     async (tipId: string) => {
       if (!isAdmin) return;
-      await supabase.from("tips").update({ pending: false }).eq("id", tipId);
+      const result = await apiJson<{ ok: true }>(`/api/admin/tips/${tipId}/approve`, {
+        method: "POST",
+      });
+      if (!result.ok) {
+        console.error("[approveTip]", result.error);
+        return;
+      }
       const tip = pendingTips.find((t) => t.id === tipId);
       if (tip) {
         setTips((prev) => [{ ...tip, pending: false }, ...prev]);
@@ -347,8 +340,13 @@ export function TipsProvider({ children }: { children: React.ReactNode }) {
   const dismissReport = useCallback(
     async (tipId: string) => {
       if (!isAdmin) return;
-      await supabase.from("reports").delete().eq("tip_id", tipId);
-      await supabase.from("tips").update({ hidden: false }).eq("id", tipId);
+      const result = await apiJson<{ ok: true }>(`/api/admin/reports/${tipId}/dismiss`, {
+        method: "POST",
+      });
+      if (!result.ok) {
+        console.error("[dismissReport]", result.error);
+        return;
+      }
       setReports((prev) => prev.filter((r) => r.tipId !== tipId));
     },
     [isAdmin]

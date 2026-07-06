@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+
+const IS_DEV = process.env.NODE_ENV === "development";
 
 // Supabase magic link může přijít ve 3 různých formátech:
 //   1. ?code=xxx                      — PKCE flow
 //   2. #access_token=xxx&refresh...   — implicit flow (auto detect)
 //   3. ?token_hash=xxx&type=magiclink — token hash flow (verify OTP)
-// Tato stránka zvládne všechny tři.
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +25,6 @@ export default function AuthCallbackPage() {
         const hashStr = window.location.hash.replace(/^#/, "");
         const hashParams = new URLSearchParams(hashStr);
 
-        // Tokeny mohou být v hashe (implicit flow) NEBO v query (PKCE/OTP)
         const code = params.get("code");
         const tokenHash = params.get("token_hash") ?? hashParams.get("token_hash");
         const type = params.get("type") ?? hashParams.get("type");
@@ -35,40 +36,36 @@ export default function AuthCallbackPage() {
           hashParams.get("error_description") ??
           hashParams.get("error");
 
-        setDebug(
-          `code=${!!code}, token_hash=${!!tokenHash}, type=${type ?? "-"}, ` +
-          `access=${!!accessToken}, refresh=${!!refreshToken}, hash="${hashStr.slice(0, 60)}"`
-        );
+        if (IS_DEV) {
+          setDebug(
+            `code=${!!code}, token_hash=${!!tokenHash}, type=${type ?? "-"}, ` +
+              `access=${!!accessToken}, refresh=${!!refreshToken}`
+          );
+        }
 
         if (errParam) {
           setError(decodeURIComponent(errParam));
           return;
         }
 
-        // 1. PKCE: ?code=...
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-        }
-        // 2. Token hash flow: ?token_hash=...&type=...
-        else if (tokenHash && type) {
-          const { error } = await supabase.auth.verifyOtp({
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        } else if (tokenHash && type) {
+          const { error: otpError } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             type: type as any,
           });
-          if (error) throw error;
-        }
-        // 3. Implicit flow: tokeny v hashe — nastav session manualne
-        else if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
+          if (otpError) throw otpError;
+        } else if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          if (error) throw error;
+          if (sessionError) throw sessionError;
         }
 
-        // Počkat až se session uloží
         for (let i = 0; i < 15; i++) {
           if (cancelled) return;
           const { data } = await supabase.auth.getSession();
@@ -102,10 +99,12 @@ export default function AuthCallbackPage() {
         <>
           <p className="text-4xl mb-4">⚠️</p>
           <p className="text-sm text-red-600 mb-2">{error}</p>
-          <p className="text-xs text-gray-400 mb-6 font-mono">{debug}</p>
-          <a href="/" className="text-sm text-teal-600 hover:underline">
+          {IS_DEV && debug && (
+            <p className="text-xs text-gray-400 mb-6 font-mono">{debug}</p>
+          )}
+          <Link href="/" className="text-sm text-teal-600 hover:underline">
             ← Zpět na hlavní stránku
-          </a>
+          </Link>
         </>
       ) : (
         <>
